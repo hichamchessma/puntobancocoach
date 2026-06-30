@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { effectiveCap, stakeForStage } from '../engine/coach';
+import { CURRENCIES, formatMoney, type Currency } from '../engine/money';
 import type { CoachConfig } from '../engine/types';
 
 export function SettingsModal({
@@ -22,6 +23,7 @@ export function SettingsModal({
   });
   const [playZigzag, setPlayZigzag] = useState(config.playZigzag);
   const [playDragon, setPlayDragon] = useState(config.playDragon);
+  const [currency, setCurrency] = useState<Currency>(config.currency);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: Number(e.target.value) }));
@@ -37,6 +39,7 @@ export function SettingsModal({
     dragonMinLen: form.dragonMinLen,
     playZigzag,
     playDragon,
+    currency,
   };
   const ladder = Array.from({ length: form.maxStages }, (_, i) => stakeForStage(i, preview));
 
@@ -49,15 +52,29 @@ export function SettingsModal({
 
         <div className="stat-row">
           <div className="field">
-            <label>Mise de base (DH)</label>
+            <label>Devise</label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as Currency)}
+              className="select"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label} ({c.symbol})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Mise de base</label>
             <input type="number" value={form.baseUnit} min={10} step={10} onChange={set('baseUnit')} />
           </div>
           <div className="field">
-            <label>Stack de départ (DH)</label>
+            <label>Bankroll / stack de départ</label>
             <input type="number" value={form.stack} min={100} step={100} onChange={set('stack')} />
           </div>
           <div className="field">
-            <label>Mise max (DH)</label>
+            <label>Mise max</label>
             <input type="number" value={form.maxBet} min={10} step={50} onChange={set('maxBet')} />
           </div>
           <div className="field">
@@ -95,10 +112,10 @@ export function SettingsModal({
         <div className="muted" style={{ marginBottom: 14 }}>
           Progression bornée prévue :{' '}
           <strong style={{ color: 'var(--gold)' }}>
-            {ladder.map((a) => a.toLocaleString('fr-FR')).join(' → ')} DH
+            {ladder.map((a) => formatMoney(a, currency)).join(' → ')}
           </strong>
           <br />
-          Plafond effectif par mise : {effectiveCap(preview).toLocaleString('fr-FR')} DH
+          Plafond effectif par mise : {formatMoney(effectiveCap(preview), currency)}
         </div>
 
         <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
@@ -118,6 +135,7 @@ export function SettingsModal({
                 dragonMinLen: form.dragonMinLen,
                 playZigzag,
                 playDragon,
+                currency,
               });
               onClose();
             }}

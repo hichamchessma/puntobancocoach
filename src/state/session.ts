@@ -1,6 +1,6 @@
 // Gestion d'état de la session : un reducer qui orchestre moteur de jeu,
-// patterns, coach et stack. Deux modes : simulateur (cartes réelles) et
-// manuel (compagnon casino : on saisit les résultats de la table).
+// patterns, coach et stack. Le joueur mise lui-même (mode manuel) ou laisse
+// le coach miser (mode coach). Le coach garde toujours sa progression "virtuelle".
 
 import { createShoe, dealHand } from '../engine/cards';
 import {
@@ -20,9 +20,16 @@ import type {
   HandResult,
   Outcome,
   ProgressionState,
+  Side,
 } from '../engine/types';
 
 export type Mode = 'sim' | 'manual';
+export type BetMode = 'coach' | 'manual'; // qui décide la mise
+
+export interface PendingBet {
+  side: Side;
+  amount: number;
+}
 
 export interface SessionState {
   config: CoachConfig;
@@ -33,7 +40,8 @@ export interface SessionState {
   shoe: Card[];
   shoeIndex: number;
   mode: Mode;
-  followCoach: boolean;
+  betMode: BetMode;
+  pendingBet: PendingBet | null;
   past: Omit<SessionState, 'past'>[]; // pour undo
 }
 
@@ -47,7 +55,8 @@ export function createInitialState(config: CoachConfig = DEFAULT_CONFIG): Sessio
     shoe: createShoe(8),
     shoeIndex: 0,
     mode: 'sim',
-    followCoach: true,
+    betMode: 'manual',
+    pendingBet: null,
     past: [],
   };
 }
@@ -56,7 +65,8 @@ export type Action =
   | { type: 'DEAL' } // simulateur : distribue une main
   | { type: 'RECORD'; outcome: Outcome } // manuel : on saisit un résultat
   | { type: 'SET_MODE'; mode: Mode }
-  | { type: 'TOGGLE_FOLLOW' }
+  | { type: 'SET_BET_MODE'; betMode: BetMode }
+  | { type: 'SET_PENDING_BET'; bet: PendingBet | null }
   | { type: 'SET_CONFIG'; patch: Partial<CoachConfig> }
   | { type: 'NEW_SHOE' } // nouveau sabot : remet la road à zéro (garde stack)
   | { type: 'RESET_SESSION' } // tout remettre à zéro
@@ -78,23 +88,33 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
   const outcomes = selectOutcomes(state);
   const advice = computeAdvice(outcomes, state.config, state.progression);
 
+  // 1) Progression VIRTUELLE du coach : avance toujours (même si le joueur ne suit pas),
+  //    pour que le conseil reste cohérent.
+  let progression = state.progression;
+  if (advice.action === 'bet' && advice.side) {
+    const r = resolveBet(advice.side, result.outcome);
+    progression = nextProgression(advice.stage, advice.side, advice.strategy, r, state.config);
+  }
+
+  // 2) Mise RÉELLE qui touche le stack : coach (auto) ou joueur (manuel).
+  let chosen: { side: Side; amount: number; stage: number } | null = null;
+  if (state.betMode === 'coach') {
+    if (advice.action === 'bet' && advice.side && advice.amount > 0)
+      chosen = { side: advice.side, amount: advice.amount, stage: advice.stage };
+  } else if (state.pendingBet && state.pendingBet.amount > 0) {
+    chosen = { side: state.pendingBet.side, amount: state.pendingBet.amount, stage: 0 };
+  }
+
   let bet: Bet | undefined;
   let stack = state.stack;
-  let progression = state.progression;
-
-  const shouldBet = state.followCoach && advice.action === 'bet' && advice.side && advice.amount > 0;
-  if (shouldBet && advice.side) {
-    const betResult = resolveBet(advice.side, result.outcome);
-    const payout = betPayout(advice.side, advice.amount, betResult);
-    stack = state.stack + payout;
-    bet = { side: advice.side, amount: advice.amount, stage: advice.stage, result: betResult };
-    progression = nextProgression(
-      advice.stage,
-      advice.side,
-      advice.strategy,
-      betResult,
-      state.config,
-    );
+  if (chosen) {
+    const amount = Math.min(chosen.amount, Math.max(0, stack));
+    if (amount > 0) {
+      const r = resolveBet(chosen.side, result.outcome);
+      const net = betPayout(chosen.side, amount, r, hasCards ? result.bankerValue : undefined);
+      stack = state.stack + net;
+      bet = { side: chosen.side, amount, stage: chosen.stage, result: r, net };
+    }
   }
 
   const hand: Hand = {
@@ -118,6 +138,7 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
     hands: [...state.hands, hand],
     stack,
     progression,
+    pendingBet: null,
     past: [...state.past, snapshot(state)],
   };
 }
@@ -150,8 +171,11 @@ export function reducer(state: SessionState, action: Action): SessionState {
     case 'SET_MODE':
       return { ...state, mode: action.mode };
 
-    case 'TOGGLE_FOLLOW':
-      return { ...state, followCoach: !state.followCoach };
+    case 'SET_BET_MODE':
+      return { ...state, betMode: action.betMode, pendingBet: null };
+
+    case 'SET_PENDING_BET':
+      return { ...state, pendingBet: action.bet };
 
     case 'SET_CONFIG': {
       const config = { ...state.config, ...action.patch };
@@ -172,6 +196,7 @@ export function reducer(state: SessionState, action: Action): SessionState {
         progression: { ...INITIAL_PROGRESSION },
         shoe: createShoe(8),
         shoeIndex: 0,
+        pendingBet: null,
         past: [],
       };
 

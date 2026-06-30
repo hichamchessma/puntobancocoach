@@ -23,6 +23,7 @@ export const DEFAULT_CONFIG: CoachConfig = {
   playZigzag: true,
   playDragon: true,
   dragonMinLen: 4, // 4 mêmes résultats d'affilée = dragon confirmé
+  currency: 'DH',
 };
 
 export const INITIAL_PROGRESSION: ProgressionState = {
@@ -147,11 +148,25 @@ export function resolveBet(side: Side, outcome: import('./types').Outcome): BetR
   return outcome === side ? 'win' : 'lose';
 }
 
-/** Gain net d'une mise résolue (commission 5% sur le Banquier). */
-export function betPayout(side: Side, amount: number, result: BetResult): number {
+/**
+ * Gain NET d'une mise résolue, règle "no commission / Banker 6 paie moitié" :
+ * - Égalité (push) : 0 (mise rendue).
+ * - Joueur gagne : +mise (1:1).
+ * - Banquier gagne avec un total de 6 : +mise/2 (paie moitié).
+ * - Banquier gagne autrement : +mise (1:1).
+ * - Perdu : -mise.
+ * `bankerValue` est requis pour appliquer la règle du 6 (sinon Banquier paie plein).
+ */
+export function betPayout(
+  side: Side,
+  amount: number,
+  result: BetResult,
+  bankerValue?: number,
+): number {
   if (result === 'push') return 0;
   if (result === 'lose') return -amount;
-  return side === 'B' ? amount * 0.95 : amount; // commission banquier
+  if (side === 'P') return amount;
+  return bankerValue === 6 ? amount * 0.5 : amount; // Banquier
 }
 
 /**

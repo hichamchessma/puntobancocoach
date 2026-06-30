@@ -1,7 +1,6 @@
 import { tallies } from '../engine/roads';
+import { useMoney } from '../state/currency';
 import type { CoachConfig, Hand, Outcome } from '../engine/types';
-
-const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR') + ' DH';
 
 export function SessionStats({
   stack,
@@ -16,6 +15,7 @@ export function SessionStats({
   hands: Hand[];
   outcomes: Outcome[];
 }) {
+  const fmt = useMoney();
   const profit = stack - startStack;
   const t = tallies(outcomes);
   const bets = hands.filter((h) => h.bet);

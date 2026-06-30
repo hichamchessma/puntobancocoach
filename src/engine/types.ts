@@ -26,6 +26,7 @@ export interface Bet {
   amount: number;
   stage: number; // palier de progression (0 = mise de base)
   result?: BetResult;
+  net?: number; // gain/perte net réellement appliqué au stack
 }
 
 export interface Hand {
@@ -80,6 +81,7 @@ export interface CoachConfig {
   playZigzag: boolean; // stratégie zigzag active
   playDragon: boolean; // stratégie dragon (跟龍) active
   dragonMinLen: number; // longueur de série pour déclencher le dragon (ex. 4)
+  currency: import('./money').Currency; // devise d'affichage
 }
 
 // État vivant de la progression du coach

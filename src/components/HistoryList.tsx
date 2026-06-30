@@ -1,16 +1,15 @@
-import { betPayout } from '../engine/coach';
+import { useMoney } from '../state/currency';
 import type { Hand } from '../engine/types';
 
-const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR');
-
 export function HistoryList({ hands }: { hands: Hand[] }) {
+  const fmt = useMoney();
   if (hands.length === 0) {
     return <div className="empty-note">Aucun coup joué pour l'instant.</div>;
   }
   return (
     <div className="history">
       {[...hands].reverse().map((h) => {
-        const pl = h.bet?.result ? betPayout(h.bet.side, h.bet.amount, h.bet.result) : 0;
+        const pl = h.bet?.net ?? 0;
         const plClass = pl > 0 ? 'pos' : pl < 0 ? 'neg' : 'zero';
         return (
           <div className="hist-row" key={h.id}>
@@ -19,7 +18,7 @@ export function HistoryList({ hands }: { hands: Hand[] }) {
               <div>Coup #{h.id + 1}</div>
               <div className="hist-bet">
                 {h.bet
-                  ? `Misé ${fmt(h.bet.amount)} sur ${h.bet.side} (palier ${h.bet.stage + 1})`
+                  ? `Misé ${fmt(h.bet.amount)} sur ${h.bet.side === 'P' ? 'Joueur' : 'Banquier'}`
                   : 'Pas de mise'}
               </div>
             </div>

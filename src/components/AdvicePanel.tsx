@@ -1,7 +1,6 @@
+import { useMoney } from '../state/currency';
 import type { Advice, CoachConfig, Outcome } from '../engine/types';
 import { SequenceTrail, StakeLadder } from './AdviceVisuals';
-
-const fmt = (n: number) => n.toLocaleString('fr-FR') + ' DH';
 
 export function AdvicePanel({
   advice,
@@ -14,6 +13,7 @@ export function AdvicePanel({
   outcomes: Outcome[];
   onDetails: () => void;
 }) {
+  const fmt = useMoney();
   const { action, side, amount, stage, reason, riskNote } = advice;
 
   const pillClass =

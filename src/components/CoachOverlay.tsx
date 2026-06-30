@@ -1,9 +1,8 @@
 import { analyzeShoe } from '../engine/analysis';
 import { effectiveCap, stakeForStage } from '../engine/coach';
+import { useMoney } from '../state/currency';
 import type { Advice, CoachConfig, Outcome } from '../engine/types';
 import { SequenceTrail, StakeLadder } from './AdviceVisuals';
-
-const fmt = (n: number) => n.toLocaleString('fr-FR') + ' DH';
 
 export function CoachOverlay({
   advice,
@@ -16,6 +15,7 @@ export function CoachOverlay({
   outcomes: Outcome[];
   onClose: () => void;
 }) {
+  const fmt = useMoney();
   const a = analyzeShoe(outcomes);
   const { action, side, amount, stage } = advice;
 
