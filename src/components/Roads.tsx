@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   buildBeadPlate,
   buildBigRoad,
@@ -14,17 +15,30 @@ const DERIVED_META: Record<DerivedKey, { label: string; cn: string }> = {
   cockroach: { label: 'Cockroach', cn: '曱甴路' },
 };
 
+/** Scrolle l'élément jusqu'à la fin à chaque nouveau coup (la barre permet de revenir en arrière). */
+function useFollowEnd(len: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [len]);
+  return ref;
+}
+
 export function Roads({ outcomes }: { outcomes: Outcome[] }) {
   const big = buildBigRoad(outcomes);
   const bead = buildBeadPlate(outcomes);
   const bigCols = Math.max(1, ...big.map((c) => c.col + 1));
   const beadCols = Math.max(1, ...bead.map((c) => c.col + 1));
 
+  const bigRef = useFollowEnd(outcomes.length);
+  const beadRef = useFollowEnd(outcomes.length);
+
   return (
     <div>
       <div className="road-block">
         <div className="road-label">BIG ROAD · 大路</div>
-        <div className="road-grid" style={{ gridTemplateColumns: `repeat(${bigCols}, 18px)` }}>
+        <div className="road-grid" ref={bigRef} style={{ gridTemplateColumns: `repeat(${bigCols}, 18px)` }}>
           {big.map((c, i) => (
             <div
               key={i}
@@ -57,6 +71,7 @@ export function Roads({ outcomes }: { outcomes: Outcome[] }) {
         <div className="road-label">BEAD PLATE · 珠盤路</div>
         <div
           className="road-grid bead"
+          ref={beadRef}
           style={{ gridTemplateColumns: `repeat(${beadCols}, 20px)` }}
         >
           {bead.map((c, i) => (
@@ -78,6 +93,7 @@ function DerivedRoad({ outcomes, which }: { outcomes: Outcome[]; which: DerivedK
   const cells = placeColors(buildDerivedRoad(outcomes, DERIVED_OFFSETS[which]));
   const cols = Math.max(1, ...cells.map((c) => c.col + 1));
   const meta = DERIVED_META[which];
+  const ref = useFollowEnd(outcomes.length);
 
   return (
     <div className="derived-col road-block">
@@ -86,6 +102,7 @@ function DerivedRoad({ outcomes, which }: { outcomes: Outcome[]; which: DerivedK
       </div>
       <div
         className="road-grid derived"
+        ref={ref}
         style={{ gridTemplateColumns: `repeat(${cols}, 14px)` }}
       >
         {cells.map((c, i) => (
