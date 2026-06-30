@@ -1,5 +1,6 @@
 import type { Card, Hand } from '../engine/types';
 import { PlayingCard } from './PlayingCard';
+import { ResultToast, type ToastData } from './ResultToast';
 
 export interface Reveal {
   player: number;
@@ -11,11 +12,13 @@ export function HandArea({
   mode,
   reveal,
   settled = true,
+  toast,
 }: {
   hand?: Hand;
   mode: 'sim' | 'manual';
   reveal?: Reveal; // si fourni : on n'affiche que N cartes (animation)
   settled?: boolean; // toutes les cartes sont sorties -> on peut afficher le résultat
+  toast?: ToastData | null; // annonce du résultat (overlay)
 }) {
   const outcome = hand?.outcome;
 
@@ -59,7 +62,6 @@ export function HandArea({
           shown={reveal ? reveal.player : hand?.player?.length ?? 0}
           value={hand?.playerValue}
           win={showOutcome ? outcome === 'P' : false}
-          natural={hand?.natural && outcome === 'P' && settled}
         />
         <HandBox
           title="BANQUIER"
@@ -68,20 +70,9 @@ export function HandArea({
           shown={reveal ? reveal.banker : hand?.banker?.length ?? 0}
           value={hand?.bankerValue}
           win={showOutcome ? outcome === 'B' : false}
-          natural={hand?.natural && outcome === 'B' && settled}
         />
       </div>
-      {showOutcome && (
-        <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <span
-            className={`badge-side ${outcome === 'P' ? 'player' : outcome === 'B' ? 'banker' : 'tie'}`}
-            style={{ display: 'inline-block', padding: '8px 22px' }}
-          >
-            {outcome === 'P' ? 'JOUEUR GAGNE' : outcome === 'B' ? 'BANQUIER GAGNE' : 'ÉGALITÉ'}
-            {hand?.natural ? ' • NATUREL' : ''}
-          </span>
-        </div>
-      )}
+      <ResultToast toast={toast ?? null} />
     </div>
   );
 }
@@ -93,7 +84,6 @@ function HandBox({
   shown,
   value,
   win,
-  natural,
 }: {
   title: string;
   side: 'player' | 'banker';
@@ -101,7 +91,6 @@ function HandBox({
   shown: number; // nb de cartes à afficher
   value?: number;
   win?: boolean;
-  natural?: boolean;
 }) {
   const visible = cards ? cards.slice(0, shown) : [];
   const complete = !!cards && shown >= cards.length;
@@ -128,11 +117,6 @@ function HandBox({
           )}
         </div>
       </div>
-      {natural && (
-        <div style={{ color: 'var(--gold)', fontSize: 12, marginTop: 6, fontWeight: 700 }}>
-          NATUREL
-        </div>
-      )}
     </div>
   );
 }

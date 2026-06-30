@@ -3,6 +3,7 @@ import { AdvicePanel } from './components/AdvicePanel';
 import { CoachOverlay } from './components/CoachOverlay';
 import { DealSpeedControl, msPerCard, type SpeedMode } from './components/DealSpeedControl';
 import { HandArea, type Reveal } from './components/HandArea';
+import type { ToastData } from './components/ResultToast';
 import { HistoryList } from './components/HistoryList';
 import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
@@ -46,6 +47,11 @@ export default function App() {
   const [speedLevel, setSpeedLevel] = useState(6); // semi-rapide
   const [revealed, setRevealed] = useState(0);
   const timerRef = useRef<number | null>(null);
+
+  // Toast résultat (overlay) : apparaît à la fin de la main, 3s, puis disparaît
+  const [toast, setToast] = useState<ToastData | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const shownToastForId = useRef<number | null>(null);
 
   // Auto-distribution en maintenant Espace
   const holdTimerRef = useRef<number | null>(null);
@@ -97,6 +103,25 @@ export default function App() {
     clearTimer();
     setRevealed(total);
   }, [clearTimer, total]);
+
+  // Toast résultat : montré quand la main est finie, masqué pendant la distribution
+  useEffect(() => {
+    if (mode !== 'sim' || !lastHand?.outcome) {
+      setToast(null);
+      return;
+    }
+    if (!settled) {
+      // main en cours de distribution -> on cache l'annonce
+      setToast(null);
+      if (toastTimerRef.current != null) clearTimeout(toastTimerRef.current);
+      return;
+    }
+    if (shownToastForId.current === lastHand.id) return; // déjà annoncé
+    shownToastForId.current = lastHand.id;
+    setToast({ id: lastHand.id, outcome: lastHand.outcome, natural: !!lastHand.natural });
+    if (toastTimerRef.current != null) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
+  }, [settled, lastHand?.id, lastHand?.outcome, lastHand?.natural, mode]);
 
   const stopAutoDeal = useCallback(() => {
     if (holdTimerRef.current != null) {
@@ -188,7 +213,7 @@ export default function App() {
             <h2>
               Table <span className="sub">· {mode === 'sim' ? 'Simulateur' : 'Mode casino'}</span>
             </h2>
-            <HandArea hand={lastHand} mode={mode} reveal={reveal} settled={settled} />
+            <HandArea hand={lastHand} mode={mode} reveal={reveal} settled={settled} toast={toast} />
 
             <div className="controls" style={{ marginTop: 14 }}>
               <div className="seg-toggle">
