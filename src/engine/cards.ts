@@ -31,6 +31,26 @@ export function isRed(card: Card): boolean {
   return card.suit === 'H' || card.suit === 'D';
 }
 
+/**
+ * Nom de fichier image de la carte (set memoryMaster) :
+ * `card_<rang><couleur>.png` — rang: 1=As..10, j/q/k ; couleur: s/h/d/c.
+ */
+export function cardFileName(card: Card): string {
+  const rank =
+    card.rank === 1
+      ? '1'
+      : card.rank <= 10
+        ? String(card.rank)
+        : card.rank === 11
+          ? 'j'
+          : card.rank === 12
+            ? 'q'
+            : 'k';
+  return `card_${rank}${card.suit.toLowerCase()}.png`;
+}
+
+export const CARD_BACK_FILE = 'card_back.png';
+
 /** Crée un sabot de `decks` jeux (par défaut 8) puis le mélange (Fisher–Yates) */
 export function createShoe(decks = 8): Card[] {
   const cards: Card[] = [];

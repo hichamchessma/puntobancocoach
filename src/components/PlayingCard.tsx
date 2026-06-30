@@ -1,12 +1,21 @@
-import { RANK_LABELS, SUIT_SYMBOLS, isRed } from '../engine/cards';
+import { cardFileName, cardLabel } from '../engine/cards';
 import type { Card } from '../engine/types';
 
-export function PlayingCard({ card }: { card?: Card }) {
+// Préfixe de base (gère le déploiement sous /puntobancocoach/ sur GitHub Pages)
+const BASE = import.meta.env.BASE_URL;
+
+export function cardImageSrc(card: Card): string {
+  return `${BASE}cards/${cardFileName(card)}`;
+}
+
+export function PlayingCard({ card, third = false }: { card?: Card; third?: boolean }) {
   if (!card) return <div className="card--empty" />;
   return (
-    <div className={`card ${isRed(card) ? 'card--red' : 'card--black'}`}>
-      <span className="card__rank">{RANK_LABELS[card.rank]}</span>
-      <span className="card__suit">{SUIT_SYMBOLS[card.suit]}</span>
-    </div>
+    <img
+      className={`card-img ${third ? 'third' : ''}`}
+      src={cardImageSrc(card)}
+      alt={cardLabel(card)}
+      draggable={false}
+    />
   );
 }

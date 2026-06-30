@@ -105,6 +105,8 @@ function HandBox({
 }) {
   const visible = cards ? cards.slice(0, shown) : [];
   const complete = !!cards && shown >= cards.length;
+  const base = visible.slice(0, 2);
+  const third = visible[2]; // la 3e carte, tirée horizontalement au-dessus
 
   return (
     <div className={`hand-box ${win ? 'win' : ''}`}>
@@ -113,14 +115,18 @@ function HandBox({
         <span className="hand-value">{complete && value !== undefined ? value : '—'}</span>
       </div>
       <div className="hand-cards">
-        {visible.length > 0 ? (
-          visible.map((c, i) => <PlayingCard key={i} card={c} />)
-        ) : (
-          <>
-            <div className="card--empty" />
-            <div className="card--empty" />
-          </>
-        )}
+        {/* La 3e carte : couchée (horizontale), posée au-dessus comme au casino */}
+        <div className="third-slot">{third && <PlayingCard card={third} third />}</div>
+        <div className="base-cards">
+          {base.length > 0 ? (
+            base.map((c, i) => <PlayingCard key={i} card={c} />)
+          ) : (
+            <>
+              <div className="card--empty" />
+              <div className="card--empty" />
+            </>
+          )}
+        </div>
       </div>
       {natural && (
         <div style={{ color: 'var(--gold)', fontSize: 12, marginTop: 6, fontWeight: 700 }}>

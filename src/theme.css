@@ -134,7 +134,10 @@ body {
   font-size: 22px; font-weight: 800; color: #fff;
   background: rgba(0, 0, 0, 0.35);
 }
-.hand-cards { display: flex; gap: 8px; min-height: 92px; align-items: center; }
+.hand-cards {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 6px; min-height: 156px;
+}
 .badge-side {
   margin-top: 10px; text-align: center; font-weight: 800; letter-spacing: 2px;
   padding: 6px; border-radius: 8px; font-size: 13px;
@@ -143,30 +146,33 @@ body {
 .badge-side.banker { background: var(--banker-soft); color: #ffdede; }
 .badge-side.tie { background: #0d4a35; color: #b9ffe1; }
 
-/* ===== Cartes ===== */
-.card {
-  width: 62px; height: 88px; border-radius: 8px;
-  background: linear-gradient(160deg, #ffffff, #e9eef6);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: 6px 7px; position: relative;
-  animation: deal 0.28s ease both;
+/* ===== Cartes (images) ===== */
+.card-img {
+  width: 62px; height: 88px; border-radius: 7px;
+  object-fit: contain; user-select: none;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
 }
+.base-cards { display: flex; gap: 8px; align-items: flex-end; }
+.base-cards .card-img { animation: deal 0.28s ease both; }
 @keyframes deal {
   from { transform: translateY(-16px) rotate(-6deg); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
-.card--red { color: #d4242f; }
-.card--black { color: #1a1f2b; }
-.card__rank { font-weight: 800; font-size: 18px; line-height: 1; }
-.card__suit { font-size: 22px; text-align: right; }
-.card--back {
-  width: 62px; height: 88px; border-radius: 8px;
-  background:
-    repeating-linear-gradient(45deg, #1b3a6b 0 6px, #16315a 6px 12px);
-  border: 2px solid #d4b14a55;
+/* 3e carte : couchée (horizontale), posée au-dessus des deux premières */
+.third-slot { position: relative; height: 64px; width: 100%; }
+.third-slot .card-img.third {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  animation: dealThird 0.32s ease both;
 }
-.card--empty { width: 62px; height: 88px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.18); }
+@keyframes dealThird {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.card--empty {
+  width: 62px; height: 88px; border-radius: 7px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+}
 
 /* ===== Roads / scoreboard ===== */
 .road-block { margin-bottom: 12px; }
