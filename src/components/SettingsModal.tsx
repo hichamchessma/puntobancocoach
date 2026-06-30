@@ -18,7 +18,10 @@ export function SettingsModal({
     maxStages: config.maxStages,
     zigzagMinLen: config.zigzagMinLen,
     maxRiskPct: Math.round(config.maxRiskPct * 100),
+    dragonMinLen: config.dragonMinLen,
   });
+  const [playZigzag, setPlayZigzag] = useState(config.playZigzag);
+  const [playDragon, setPlayDragon] = useState(config.playDragon);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: Number(e.target.value) }));
@@ -31,6 +34,9 @@ export function SettingsModal({
     maxStages: form.maxStages,
     zigzagMinLen: form.zigzagMinLen,
     maxRiskPct: form.maxRiskPct / 100,
+    dragonMinLen: form.dragonMinLen,
+    playZigzag,
+    playDragon,
   };
   const ladder = Array.from({ length: form.maxStages }, (_, i) => stakeForStage(i, preview));
 
@@ -69,6 +75,23 @@ export function SettingsModal({
           </div>
         </div>
 
+        <div className="coach-label" style={{ marginBottom: 8 }}>STRATÉGIES JOUÉES</div>
+        <div className="stat-row" style={{ marginBottom: 8 }}>
+          <label className="toggle" style={{ color: 'var(--text)' }}>
+            <input type="checkbox" checked={playZigzag} onChange={() => setPlayZigzag((v) => !v)} />
+            Zigzag / ping-pong (單跳)
+          </label>
+          <label className="toggle" style={{ color: 'var(--text)' }}>
+            <input type="checkbox" checked={playDragon} onChange={() => setPlayDragon((v) => !v)} />
+            Dragon — suivre la série (跟龍)
+          </label>
+          <div className="field">
+            <label>Dragon : longueur de série requise</label>
+            <input type="number" value={form.dragonMinLen} min={3} max={12} onChange={set('dragonMinLen')} />
+            <div className="hint">Mise à plat ; si le dragon casse, on arrête (pas de chasse).</div>
+          </div>
+        </div>
+
         <div className="muted" style={{ marginBottom: 14 }}>
           Progression bornée prévue :{' '}
           <strong style={{ color: 'var(--gold)' }}>
@@ -92,6 +115,9 @@ export function SettingsModal({
                 maxStages: form.maxStages,
                 zigzagMinLen: form.zigzagMinLen,
                 maxRiskPct: form.maxRiskPct / 100,
+                dragonMinLen: form.dragonMinLen,
+                playZigzag,
+                playDragon,
               });
               onClose();
             }}

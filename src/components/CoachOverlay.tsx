@@ -29,10 +29,14 @@ export function CoachOverlay({
             cls: side === 'P' ? 'player' : 'banker',
           };
 
-  // Plan selon résultat (pédagogie)
-  const winPlan = `Je gagne → j'encaisse et je reviens à la mise de base (${fmt(stakeForStage(0, config))}).`;
-  const losePlan =
-    stage + 1 < config.maxStages
+  // Plan selon résultat (pédagogie), différent selon la stratégie
+  const isDragon = advice.strategy === 'dragon';
+  const winPlan = isDragon
+    ? `Je gagne → le dragon continue. Je peux re-suivre au coup suivant (toujours à plat).`
+    : `Je gagne → j'encaisse et je reviens à la mise de base (${fmt(stakeForStage(0, config))}).`;
+  const losePlan = isDragon
+    ? `Je perds → le dragon a cassé. J'arrête : une seule perte, pas de chasse.`
+    : stage + 1 < config.maxStages
       ? `Je perds → palier suivant : ${fmt(stakeForStage(stage + 1, config))} (palier ${stage + 2}/${config.maxStages}).`
       : `Je perds → STOP forcé : j'encaisse la perte et je repars à zéro. Pas de chasse.`;
 
@@ -82,8 +86,16 @@ export function CoachOverlay({
         {/* GESTION DE MISE */}
         {action !== 'wait' && (
           <div className="coach-section">
-            <div className="coach-label">③ Gestion de la mise (bornée)</div>
-            <StakeLadder config={config} stage={stage} active={action === 'bet'} />
+            <div className="coach-label">③ Gestion de la mise</div>
+            {isDragon ? (
+              <p className="coach-text">
+                🐉 Sur un dragon, on mise <strong>à plat</strong> ({fmt(stakeForStage(0, config))})
+                et on le suit tant qu'il dure. Pas de martingale : si le dragon casse, on encaisse
+                la perte et on arrête.
+              </p>
+            ) : (
+              <StakeLadder config={config} stage={stage} active={action === 'bet'} />
+            )}
             <div className="muted" style={{ marginTop: 8 }}>
               Plafond par mise : {fmt(effectiveCap(config))} · mise max {fmt(config.maxBet)}
             </div>

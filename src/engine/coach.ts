@@ -2,8 +2,15 @@
 // Philosophie : pas de martingale infinie. La progression est plafonnée par
 // le nombre de paliers, la mise max, et un % du stack. À la fin → STOP / reset.
 
-import { detectSignal, opposite, withoutTies } from './patterns';
-import type { Advice, BetResult, CoachConfig, ProgressionState, Side } from './types';
+import { detectSignal, opposite, trailingStreak, trailingZigzag, withoutTies } from './patterns';
+import type {
+  Advice,
+  BetResult,
+  CoachConfig,
+  ProgressionState,
+  Side,
+  Strategy,
+} from './types';
 
 export const DEFAULT_CONFIG: CoachConfig = {
   baseUnit: 200,
@@ -13,12 +20,16 @@ export const DEFAULT_CONFIG: CoachConfig = {
   multipliers: [1, 2, 3], // progression douce (pas x2 systématique)
   zigzagMinLen: 4, // 4 résultats alternés = "2 tours"
   maxRiskPct: 0.15, // jamais plus de 15% du stack sur une seule mise
+  playZigzag: true,
+  playDragon: true,
+  dragonMinLen: 4, // 4 mêmes résultats d'affilée = dragon confirmé
 };
 
 export const INITIAL_PROGRESSION: ProgressionState = {
   stage: 0,
   active: false,
   side: null,
+  strategy: null,
 };
 
 /** Plafond effectif d'une mise unique */
@@ -50,21 +61,22 @@ export function computeAdvice(
   const signal = detectSignal(outcomes, config.zigzagMinLen);
   const seq = withoutTies(outcomes);
   const last: Side | null = seq.length ? seq[seq.length - 1] : null;
+  const sideName = (s: Side) => (s === 'P' ? 'Joueur' : 'Banquier');
 
-  // Progression de récupération en cours
-  if (prog.active) {
+  // 1) Progression de récupération zigzag en cours
+  if (prog.active && prog.strategy === 'zigzag') {
     if (prog.stage >= config.maxStages) {
       return {
         action: 'stop',
         side: null,
         amount: 0,
         stage: prog.stage,
+        strategy: null,
         reason: 'Palier max atteint — STOP. On encaisse la perte et on repart à zéro.',
         signal,
         riskNote: 'Discipline : ne pas chasser. Pause conseillée.',
       };
     }
-    // On continue de jouer le zigzag : opposé du dernier résultat
     const side: Side = last ? opposite(last) : (prog.side ?? 'B');
     const amount = stakeForStage(prog.stage, config);
     const capped = amount >= effectiveCap(config);
@@ -73,37 +85,58 @@ export function computeAdvice(
       side,
       amount,
       stage: prog.stage,
+      strategy: 'zigzag',
       reason:
         prog.stage === 0
-          ? `${signal.label} → on mise la continuation`
+          ? `${signal.label} → on mise la continuation du zigzag`
           : `Récupération palier ${prog.stage + 1}/${config.maxStages} sur le zigzag`,
       signal,
       riskNote: capped ? 'Mise plafonnée (mise max / risque stack).' : undefined,
     };
   }
 
-  // Pas de progression : on démarre UNIQUEMENT sur un zigzag confirmé
-  if (signal.kind === 'zigzag' && signal.recommend) {
+  const zig = trailingZigzag(seq);
+  const streak = trailingStreak(seq);
+
+  // 2) Démarrage zigzag (chop confirmé)
+  if (config.playZigzag && last && zig >= config.zigzagMinLen) {
     return {
       action: 'bet',
-      side: signal.recommend,
+      side: opposite(last),
       amount: stakeForStage(0, config),
       stage: 0,
-      reason: `${signal.label} → on parie sur la continuation du zigzag`,
+      strategy: 'zigzag',
+      reason: `Zigzag confirmé (${zig} alternés) → on parie la continuation (opposé du dernier).`,
       signal,
     };
   }
 
-  // Sinon on attend (on n'est pas obligé de jouer chaque coup)
+  // 3) Dragon confirmé (跟龍) : on SUIT la série, mise à plat (pas de chasse)
+  if (config.playDragon && last && streak >= config.dragonMinLen) {
+    return {
+      action: 'bet',
+      side: last,
+      amount: stakeForStage(0, config),
+      stage: 0,
+      strategy: 'dragon',
+      reason: `Dragon ${sideName(last)} (${streak}) confirmé → on suit le dragon (跟龍). Mise à plat ; si le dragon casse, on arrête.`,
+      signal,
+    };
+  }
+
+  // 4) Sinon on attend (on n'est pas obligé de jouer chaque coup)
   return {
     action: 'wait',
     side: signal.recommend,
     amount: 0,
     stage: 0,
+    strategy: null,
     reason:
-      signal.kind === 'streak'
-        ? `${signal.label} — hors stratégie zigzag, on observe`
-        : 'Pas de zigzag net : on attend le bon moment.',
+      streak >= 2 && config.playDragon
+        ? `Série ${last ? sideName(last) : ''} en formation (${streak}) — pas encore un dragon (seuil ${config.dragonMinLen}).`
+        : zig >= 2 && config.playZigzag
+          ? `Zigzag en formation (${zig}) — pas encore confirmé (seuil ${config.zigzagMinLen}).`
+          : "Pas de motif net : on attend le bon moment.",
     signal,
   };
 }
@@ -123,19 +156,27 @@ export function betPayout(side: Side, amount: number, result: BetResult): number
 
 /**
  * Fait évoluer l'état de progression après la résolution d'une mise.
- * win  -> reset (on encaisse, on repart à la base)
- * push -> inchangé (égalité, mise rendue)
- * lose -> palier suivant, sauf si on atteint maxStages -> reset forcé (anti-tilt)
+ *
+ * - Dragon : mise à plat, AUCUNE chasse. Quoi qu'il arrive on revient à zéro
+ *   (si le dragon continue, il sera redétecté au coup suivant ; s'il casse, stop).
+ * - Zigzag :
+ *     win  -> reset (on encaisse)
+ *     push -> inchangé (égalité, mise rendue)
+ *     lose -> palier suivant, sauf à maxStages -> reset forcé (anti-tilt)
  */
 export function nextProgression(
   placedStage: number,
   placedSide: Side,
+  strategy: Strategy | null,
   result: BetResult,
   config: CoachConfig,
 ): ProgressionState {
+  if (strategy === 'dragon') return { ...INITIAL_PROGRESSION };
+
   if (result === 'win') return { ...INITIAL_PROGRESSION };
-  if (result === 'push') return { stage: placedStage, active: true, side: placedSide };
+  if (result === 'push')
+    return { stage: placedStage, active: true, side: placedSide, strategy: 'zigzag' };
   const nextStage = placedStage + 1;
   if (nextStage >= config.maxStages) return { ...INITIAL_PROGRESSION }; // STOP forcé
-  return { stage: nextStage, active: true, side: placedSide };
+  return { stage: nextStage, active: true, side: placedSide, strategy: 'zigzag' };
 }

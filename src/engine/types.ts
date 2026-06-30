@@ -52,6 +52,9 @@ export interface PatternSignal {
   label: string; // texte humain
 }
 
+// Stratégies jouables par le coach
+export type Strategy = 'zigzag' | 'dragon';
+
 // Conseil du coach pour le prochain coup
 export type Action = 'bet' | 'wait' | 'stop';
 
@@ -60,6 +63,7 @@ export interface Advice {
   side: Side | null;
   amount: number;
   stage: number;
+  strategy: Strategy | null; // stratégie qui motive ce conseil
   reason: string;
   signal: PatternSignal;
   riskNote?: string; // avertissement anti-tilt éventuel
@@ -73,6 +77,9 @@ export interface CoachConfig {
   multipliers: number[]; // multiplicateurs de mise par palier, ex [1, 2, 3]
   zigzagMinLen: number; // nb de résultats alternés requis pour déclencher (ex. 4 = "2 tours")
   maxRiskPct: number; // % max du stack engageable sur une mise unique (0..1)
+  playZigzag: boolean; // stratégie zigzag active
+  playDragon: boolean; // stratégie dragon (跟龍) active
+  dragonMinLen: number; // longueur de série pour déclencher le dragon (ex. 4)
 }
 
 // État vivant de la progression du coach
@@ -80,4 +87,5 @@ export interface ProgressionState {
   stage: number; // palier courant (0 = base)
   active: boolean; // une progression est en cours
   side: Side | null; // côté courant suivi par la progression
+  strategy: Strategy | null; // stratégie de la progression en cours
 }

@@ -104,10 +104,16 @@ function buildTips(
     return tips;
   }
 
+  const actionable = pattern.key === 'dragon' || pattern.key === 'single-chop';
+
   if (regularity === 'régulier') {
     tips.push('🔴 Sabot RÉGULIER (3 rouges) : les habitués SUIVENT la tendance en confiance.');
   } else if (regularity === 'mitigé') {
-    tips.push('🟠 Sabot MITIGÉ : signaux partagés. On joue petit ou on attend confirmation.');
+    tips.push('🟠 Sabot MITIGÉ : signaux partagés. On suit avec une mise modérée.');
+  } else if (actionable) {
+    tips.push(
+      '🔵 Sabot CHAOTIQUE : le motif peut casser à tout moment → on le suit, mais PRUDEMMENT (petite mise).',
+    );
   } else {
     tips.push('🔵 Sabot CHAOTIQUE (bleus) : imprévisible. La sagesse chinoise = ATTENDRE.');
   }

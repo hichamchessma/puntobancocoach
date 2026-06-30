@@ -43,12 +43,17 @@ export function AdvicePanel({
         <SequenceTrail outcomes={outcomes} predict={action === 'bet' ? side : advice.signal.recommend} />
       </div>
 
-      {/* Échelle de mise bornée */}
-      {action !== 'wait' && (
+      {/* Échelle de mise bornée (zigzag) ou mise à plat (dragon) */}
+      {advice.strategy === 'zigzag' || action === 'stop' ? (
         <div style={{ margin: '10px 0' }}>
           <StakeLadder config={config} stage={stage} active={action === 'bet'} />
         </div>
-      )}
+      ) : advice.strategy === 'dragon' ? (
+        <div className="muted" style={{ margin: '10px 0' }}>
+          🐉 Mise <strong style={{ color: 'var(--gold)' }}>à plat</strong> sur le dragon · si le
+          dragon casse, on arrête (pas de chasse).
+        </div>
+      ) : null}
 
       <div className="reason">{reason}</div>
       {riskNote && <div className="risk">⚠ {riskNote}</div>}

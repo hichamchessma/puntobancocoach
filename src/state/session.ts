@@ -88,7 +88,13 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
     const payout = betPayout(advice.side, advice.amount, betResult);
     stack = state.stack + payout;
     bet = { side: advice.side, amount: advice.amount, stage: advice.stage, result: betResult };
-    progression = nextProgression(advice.stage, advice.side, betResult, state.config);
+    progression = nextProgression(
+      advice.stage,
+      advice.side,
+      advice.strategy,
+      betResult,
+      state.config,
+    );
   }
 
   const hand: Hand = {
