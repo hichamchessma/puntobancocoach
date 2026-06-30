@@ -1,0 +1,5 @@
+{
+  // Ne pas remonter au dépôt parent (C:/funnyprojects) : on ne veut voir
+  // que le dépôt puntoBancoCoach dans le panneau Source Control.
+  "git.openRepositoryInParentFolders": "never"
+}
