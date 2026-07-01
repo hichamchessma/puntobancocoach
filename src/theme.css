@@ -659,3 +659,38 @@ body {
   width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
   background: var(--gold); color: #221900; font-weight: 800; font-size: 13px;
 }
+
+/* ===== Éditeur graphique de patterns (canvas Big Road) ===== */
+.brush-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.brush {
+  background: linear-gradient(180deg, #1c2740, #141d31); border: 1px solid var(--panel-line);
+  color: var(--text); padding: 8px 12px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 13px;
+}
+.brush:hover { filter: brightness(1.12); }
+.brush.on { box-shadow: 0 0 0 2px var(--gold); border-color: var(--gold); }
+.pattern-canvas {
+  display: grid; grid-auto-rows: 26px; gap: 3px; padding: 8px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 29px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 29px),
+    #070e1c;
+  border: 1px solid var(--panel-line); border-radius: 10px; overflow-x: auto;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.45);
+}
+.pcell {
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 1px dashed rgba(255,255,255,0.10); background: transparent;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #221900;
+  transition: transform 0.05s;
+}
+.pcell:hover { border-color: rgba(227,194,100,0.5); }
+.pcell:active { transform: scale(0.9); }
+.pcell.R { border-style: solid; border: 2px solid var(--banker); background: transparent; }
+.pcell.B { border-style: solid; border: 2px solid var(--player); background: transparent; }
+.pcell.bet {
+  box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(227,194,100,0.5);
+}
+.pcell.R.bet { background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker)); color: #fff; }
+.pcell.B.bet { background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player)); color: #fff; }
+.step-row .step-desc { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+.step-row .step-desc .tdot { width: 16px; height: 16px; }
