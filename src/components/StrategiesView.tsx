@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { effectiveCap, stakeForStage } from '../engine/coach';
 import { formatMoney } from '../engine/money';
 import type { CoachConfig } from '../engine/types';
+import { CustomRuleEditor } from './CustomRuleEditor';
 
 export function StrategiesView({
   config,
@@ -117,14 +118,11 @@ export function StrategiesView({
         </div>
       </div>
 
-      <div className="panel">
-        <h2>Patterns personnalisés <span className="sub">· bientôt</span></h2>
-        <p className="coach-text" style={{ marginBottom: 0 }}>
-          🧩 Tu pourras bientôt définir <strong>tes propres patterns</strong> (ex. « 2 bleus, 1 rouge,
-          1 bleu ») et la <strong>mise associée</strong> ; le coach les jouera automatiquement et le
-          backtest les évaluera. Dis-moi les patterns que tu veux et je les ajoute.
-        </p>
-      </div>
+      <CustomRuleEditor
+        rules={config.customRules}
+        baseUnit={config.baseUnit}
+        onChange={(customRules) => onSave({ customRules })}
+      />
     </div>
   );
 }

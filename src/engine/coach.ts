@@ -2,7 +2,14 @@
 // Philosophie : pas de martingale infinie. La progression est plafonnée par
 // le nombre de paliers, la mise max, et un % du stack. À la fin → STOP / reset.
 
-import { detectSignal, opposite, trailingStreak, trailingZigzag, withoutTies } from './patterns';
+import {
+  detectSignal,
+  opposite,
+  ruleMatchesTail,
+  trailingStreak,
+  trailingZigzag,
+  withoutTies,
+} from './patterns';
 import type {
   Advice,
   BetResult,
@@ -24,6 +31,7 @@ export const DEFAULT_CONFIG: CoachConfig = {
   playDragon: true,
   dragonMinLen: 4, // 4 mêmes résultats d'affilée = dragon confirmé
   currency: 'DH',
+  customRules: [],
 };
 
 export const INITIAL_PROGRESSION: ProgressionState = {
@@ -50,6 +58,11 @@ export function stakeForStage(stage: number, config: CoachConfig): number {
   return roundChip(Math.min(raw, effectiveCap(config)));
 }
 
+/** Plafonne un montant libre (patterns custom) au cap effectif. */
+export function clampStake(amount: number, config: CoachConfig): number {
+  return roundChip(Math.min(Math.max(0, amount), effectiveCap(config)));
+}
+
 /**
  * Calcule le conseil pour le PROCHAIN coup à partir de l'historique,
  * de la config et de l'état de progression courant.
@@ -63,6 +76,35 @@ export function computeAdvice(
   const seq = withoutTies(outcomes);
   const last: Side | null = seq.length ? seq[seq.length - 1] : null;
   const sideName = (s: Side) => (s === 'P' ? 'Joueur' : 'Banquier');
+  const stepSide = (bet: 'continue' | 'break'): Side =>
+    last ? (bet === 'continue' ? last : opposite(last)) : 'B';
+
+  // 0) Progression d'un pattern personnalisé en cours (prioritaire)
+  if (prog.active && prog.strategy === 'custom' && prog.ruleId) {
+    const rule = config.customRules.find((r) => r.id === prog.ruleId && r.enabled);
+    if (rule && prog.stage < rule.steps.length) {
+      const step = rule.steps[prog.stage];
+      return {
+        action: 'bet',
+        side: stepSide(step.bet),
+        amount: clampStake(step.amount, config),
+        stage: prog.stage,
+        strategy: 'custom',
+        ruleId: rule.id,
+        reason: `${rule.name} — étape ${prog.stage + 1}/${rule.steps.length} (${step.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}).`,
+        signal,
+      };
+    }
+    return {
+      action: 'stop',
+      side: null,
+      amount: 0,
+      stage: prog.stage,
+      strategy: null,
+      reason: 'Pattern terminé — STOP, on repart à zéro (pas de chasse).',
+      signal,
+    };
+  }
 
   // 1) Progression de récupération zigzag en cours
   if (prog.active && prog.strategy === 'zigzag') {
@@ -94,6 +136,26 @@ export function computeAdvice(
       signal,
       riskNote: capped ? 'Mise plafonnée (mise max / risque stack).' : undefined,
     };
+  }
+
+  // 1bis) Démarrage d'un pattern personnalisé (prioritaire sur zigzag/dragon)
+  if (last) {
+    for (const rule of config.customRules) {
+      if (!rule.enabled || rule.steps.length === 0 || rule.trigger.length < 2) continue;
+      if (ruleMatchesTail(rule.trigger, seq)) {
+        const step = rule.steps[0];
+        return {
+          action: 'bet',
+          side: stepSide(step.bet),
+          amount: clampStake(step.amount, config),
+          stage: 0,
+          strategy: 'custom',
+          ruleId: rule.id,
+          reason: `Pattern « ${rule.name} » déclenché → ${step.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}.`,
+          signal,
+        };
+      }
+    }
   }
 
   const zig = trailingZigzag(seq);
@@ -183,11 +245,24 @@ export function nextProgression(
   placedStage: number,
   placedSide: Side,
   strategy: Strategy | null,
+  ruleId: string | undefined,
   result: BetResult,
   config: CoachConfig,
 ): ProgressionState {
   if (strategy === 'dragon') return { ...INITIAL_PROGRESSION };
 
+  // Pattern personnalisé : progression le long des étapes de la règle.
+  if (strategy === 'custom') {
+    const rule = config.customRules.find((r) => r.id === ruleId);
+    if (!rule || result === 'win') return { ...INITIAL_PROGRESSION };
+    if (result === 'push')
+      return { stage: placedStage, active: true, side: placedSide, strategy: 'custom', ruleId };
+    const nextStage = placedStage + 1;
+    if (nextStage >= rule.steps.length) return { ...INITIAL_PROGRESSION }; // fin des étapes
+    return { stage: nextStage, active: true, side: placedSide, strategy: 'custom', ruleId };
+  }
+
+  // Zigzag
   if (result === 'win') return { ...INITIAL_PROGRESSION };
   if (result === 'push')
     return { stage: placedStage, active: true, side: placedSide, strategy: 'zigzag' };

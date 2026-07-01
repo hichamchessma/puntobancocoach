@@ -630,3 +630,32 @@ body {
   background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), #070e1c;
   border: 1px solid var(--panel-line); border-radius: 10px; margin-top: 4px;
 }
+
+/* ===== Éditeur de patterns ===== */
+.rule-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.rule-item {
+  border: 1px solid var(--panel-line); border-radius: 12px; padding: 12px 14px;
+  background: linear-gradient(180deg, #0f1830, #0b1120); opacity: 0.65; position: relative;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+.rule-item.on { opacity: 1; border-color: #3a4d76; }
+.rule-item .link-btn { position: absolute; top: 12px; right: 12px; }
+.trigger-dots { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.trigger-dots.build { min-height: 30px; padding: 6px 8px; background: #070e1c; border: 1px solid var(--panel-line); border-radius: 8px; }
+.tdot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; }
+.tdot.R { background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker)); box-shadow: 0 0 6px rgba(239,74,85,0.4); }
+.tdot.B { background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player)); box-shadow: 0 0 6px rgba(74,144,255,0.4); }
+.rule-arrow { color: var(--gold); font-weight: 800; margin: 0 4px; }
+.step-chip {
+  font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  background: #16223c; border: 1px solid var(--panel-line); color: var(--text);
+}
+.rule-desc { font-size: 12px; margin-top: 4px; }
+.rule-editor { border-top: 1px solid var(--panel-line); padding-top: 12px; margin-top: 6px; }
+.step-row { display: grid; grid-template-columns: 26px 1fr 120px 42px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.step-row .select { padding: 8px 10px; }
+.step-row input { width: 100%; background: var(--panel-2); border: 1px solid var(--panel-line); color: var(--text); border-radius: 8px; padding: 8px 10px; }
+.step-idx {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--gold); color: #221900; font-weight: 800; font-size: 13px;
+}

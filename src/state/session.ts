@@ -93,7 +93,14 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
   let progression = state.progression;
   if (advice.action === 'bet' && advice.side) {
     const r = resolveBet(advice.side, result.outcome);
-    progression = nextProgression(advice.stage, advice.side, advice.strategy, r, state.config);
+    progression = nextProgression(
+      advice.stage,
+      advice.side,
+      advice.strategy,
+      advice.ruleId,
+      r,
+      state.config,
+    );
   }
 
   // 2) Mise RÉELLE qui touche le stack : coach (auto) ou joueur (manuel).

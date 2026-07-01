@@ -84,6 +84,13 @@ function SingleReport({ r, fmt }: { r: BacktestReport; fmt: (n: number) => strin
           k="Dragon 跟龍"
           v={`${r.byStrategy.dragon.wins}/${r.byStrategy.dragon.bets} · ${r.byStrategy.dragon.net >= 0 ? '+' : ''}${fmt(r.byStrategy.dragon.net)}`}
         />
+        {r.byStrategy.custom.bets > 0 && (
+          <Metric
+            k="Patterns custom"
+            v={`${r.byStrategy.custom.wins}/${r.byStrategy.custom.bets} · ${r.byStrategy.custom.net >= 0 ? '+' : ''}${fmt(r.byStrategy.custom.net)}`}
+            accent
+          />
+        )}
         <Metric k="Résultats P / B / T" v={`${r.outcomes.P} / ${r.outcomes.B} / ${r.outcomes.T}`} />
       </div>
     </div>

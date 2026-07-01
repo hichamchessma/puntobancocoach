@@ -54,7 +54,26 @@ export interface PatternSignal {
 }
 
 // Stratégies jouables par le coach
-export type Strategy = 'zigzag' | 'dragon';
+export type Strategy = 'zigzag' | 'dragon' | 'custom';
+
+// ===== Règles / patterns personnalisés =====
+// Une étape de mise : "continue" = miser la même couleur que le dernier résultat
+// (la série continue), "break" = miser la couleur opposée (la série casse).
+export interface RuleStep {
+  bet: 'continue' | 'break';
+  amount: number;
+}
+
+// Un pattern personnalisé. Le `trigger` est une FORME relative (rouge=Banquier,
+// bleu=Joueur) : seules les transitions (même/différent) comptent, donc le motif
+// marche aussi bien pour une série rouge que bleue.
+export interface CustomRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger: ('R' | 'B')[]; // au moins 2 pastilles
+  steps: RuleStep[]; // progression de mises
+}
 
 // Conseil du coach pour le prochain coup
 export type Action = 'bet' | 'wait' | 'stop';
@@ -65,6 +84,7 @@ export interface Advice {
   amount: number;
   stage: number;
   strategy: Strategy | null; // stratégie qui motive ce conseil
+  ruleId?: string; // id de la règle custom si strategy === 'custom'
   reason: string;
   signal: PatternSignal;
   riskNote?: string; // avertissement anti-tilt éventuel
@@ -82,12 +102,14 @@ export interface CoachConfig {
   playDragon: boolean; // stratégie dragon (跟龍) active
   dragonMinLen: number; // longueur de série pour déclencher le dragon (ex. 4)
   currency: import('./money').Currency; // devise d'affichage
+  customRules: CustomRule[]; // patterns personnalisés (prioritaires)
 }
 
 // État vivant de la progression du coach
 export interface ProgressionState {
-  stage: number; // palier courant (0 = base)
+  stage: number; // palier / étape courante (0 = base)
   active: boolean; // une progression est en cours
   side: Side | null; // côté courant suivi par la progression
   strategy: Strategy | null; // stratégie de la progression en cours
+  ruleId?: string; // règle custom en cours (si strategy === 'custom')
 }
