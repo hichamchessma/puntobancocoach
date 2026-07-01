@@ -110,7 +110,7 @@ export function simulateShoe(config: CoachConfig, maxHands = 200): BacktestRepor
     // progression virtuelle du coach (avance même hors mise réelle)
     if (advice.action === 'bet' && advice.side) {
       const res = resolveBet(advice.side, result.outcome);
-      prog = nextProgression(advice.stage, advice.side, advice.strategy, advice.ruleId, res, config);
+      prog = nextProgression(advice, res, config);
     }
 
     outcomes.push(result.outcome);

@@ -57,22 +57,26 @@ export interface PatternSignal {
 export type Strategy = 'zigzag' | 'dragon' | 'custom';
 
 // ===== Règles / patterns personnalisés =====
-// Une étape de mise : "continue" = miser la même couleur que le dernier résultat
-// (la série continue), "break" = miser la couleur opposée (la série casse).
-export interface RuleStep {
+// Un nœud de mise dans l'arbre de décision. "continue" = miser la même couleur
+// que le dernier résultat (la série continue), "break" = miser la couleur
+// opposée. Après résolution, onWin / onLose mènent soit à 'stop' (on arrête),
+// soit à un autre nœud de mise (on enchaîne).
+export interface BetNode {
   bet: 'continue' | 'break';
   amount: number;
+  onWin: BetNode | 'stop';
+  onLose: BetNode | 'stop';
 }
 
 // Un pattern personnalisé. Le `trigger` est une FORME relative (rouge=Banquier,
 // bleu=Joueur) : seules les transitions (même/différent) comptent, donc le motif
-// marche aussi bien pour une série rouge que bleue.
+// marche aussi bien pour une série rouge que bleue. `root` est l'arbre de mise.
 export interface CustomRule {
   id: string;
   name: string;
   enabled: boolean;
   trigger: ('R' | 'B')[]; // au moins 2 pastilles
-  steps: RuleStep[]; // progression de mises
+  root: BetNode; // arbre de décision de mise
 }
 
 // Conseil du coach pour le prochain coup
@@ -85,6 +89,7 @@ export interface Advice {
   stage: number;
   strategy: Strategy | null; // stratégie qui motive ce conseil
   ruleId?: string; // id de la règle custom si strategy === 'custom'
+  path?: string; // chemin dans l'arbre de mise (suite de 'W'/'L') pour custom
   reason: string;
   signal: PatternSignal;
   riskNote?: string; // avertissement anti-tilt éventuel
@@ -112,4 +117,5 @@ export interface ProgressionState {
   side: Side | null; // côté courant suivi par la progression
   strategy: Strategy | null; // stratégie de la progression en cours
   ruleId?: string; // règle custom en cours (si strategy === 'custom')
+  path?: string; // position dans l'arbre de mise (suite de 'W'/'L')
 }

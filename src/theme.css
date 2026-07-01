@@ -694,3 +694,22 @@ body {
 .pcell.B.bet { background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player)); color: #fff; }
 .step-row .step-desc { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
 .step-row .step-desc .tdot { width: 16px; height: 16px; }
+
+/* ===== Arbre de mise (patterns) ===== */
+.bet-tree { margin-top: 4px; }
+.node-card {
+  border: 1px solid var(--panel-line); border-radius: 12px; padding: 12px;
+  background: linear-gradient(180deg, #0f1830, #0b1120);
+}
+.node-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.node-tag { font-weight: 800; color: var(--gold-soft); letter-spacing: 1px; font-size: 13px; }
+.node-line .select { flex: 1; min-width: 200px; }
+.node-line input { width: 110px; background: var(--panel-2); border: 1px solid var(--panel-line); color: var(--text); border-radius: 8px; padding: 8px 10px; }
+.branch { border-left: 2px solid var(--panel-line); margin-left: 6px; padding-left: 12px; margin-top: 8px; }
+.branch.win { border-color: #1f6b3f; }
+.branch.lose { border-color: #8b2b2b; }
+.branch-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.branch-label { font-weight: 800; font-size: 12px; letter-spacing: 1px; }
+.branch.win .branch-label { color: #7fe9b6; }
+.branch.lose .branch-label { color: #ff9aa2; }
+.branch-stop { color: var(--text-dim); font-weight: 700; font-size: 13px; }

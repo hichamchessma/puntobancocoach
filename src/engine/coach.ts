@@ -12,12 +12,23 @@ import {
 } from './patterns';
 import type {
   Advice,
+  BetNode,
   BetResult,
   CoachConfig,
   ProgressionState,
   Side,
-  Strategy,
 } from './types';
+
+/** Nœud de mise courant dans l'arbre, en suivant un chemin de 'W'/'L'. */
+export function nodeAtPath(root: BetNode, path: string): BetNode {
+  let n = root;
+  for (const ch of path) {
+    const nx = ch === 'W' ? n.onWin : n.onLose;
+    if (nx === 'stop') return n; // sécurité
+    n = nx;
+  }
+  return n;
+}
 
 export const DEFAULT_CONFIG: CoachConfig = {
   baseUnit: 200,
@@ -82,16 +93,22 @@ export function computeAdvice(
   // 0) Progression d'un pattern personnalisé en cours (prioritaire)
   if (prog.active && prog.strategy === 'custom' && prog.ruleId) {
     const rule = config.customRules.find((r) => r.id === prog.ruleId && r.enabled);
-    if (rule && prog.stage < rule.steps.length) {
-      const step = rule.steps[prog.stage];
+    if (rule) {
+      const path = prog.path ?? '';
+      const node = nodeAtPath(rule.root, path);
+      const hist = path
+        .split('')
+        .map((c) => (c === 'W' ? 'gagné' : 'perdu'))
+        .join(' → ');
       return {
         action: 'bet',
-        side: stepSide(step.bet),
-        amount: clampStake(step.amount, config),
-        stage: prog.stage,
+        side: stepSide(node.bet),
+        amount: clampStake(node.amount, config),
+        stage: path.length,
         strategy: 'custom',
         ruleId: rule.id,
-        reason: `${rule.name} — étape ${prog.stage + 1}/${rule.steps.length} (${step.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}).`,
+        path,
+        reason: `${rule.name} — ${path.length === 0 ? 'mise déclenchée' : `suite (${hist})`} : ${node.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}.`,
         signal,
       };
     }
@@ -101,7 +118,7 @@ export function computeAdvice(
       amount: 0,
       stage: prog.stage,
       strategy: null,
-      reason: 'Pattern terminé — STOP, on repart à zéro (pas de chasse).',
+      reason: 'Pattern introuvable — STOP, on repart à zéro.',
       signal,
     };
   }
@@ -141,17 +158,18 @@ export function computeAdvice(
   // 1bis) Démarrage d'un pattern personnalisé (prioritaire sur zigzag/dragon)
   if (last) {
     for (const rule of config.customRules) {
-      if (!rule.enabled || rule.steps.length === 0 || rule.trigger.length < 2) continue;
+      if (!rule.enabled || rule.trigger.length < 2) continue;
       if (ruleMatchesTail(rule.trigger, seq)) {
-        const step = rule.steps[0];
+        const node = rule.root;
         return {
           action: 'bet',
-          side: stepSide(step.bet),
-          amount: clampStake(step.amount, config),
+          side: stepSide(node.bet),
+          amount: clampStake(node.amount, config),
           stage: 0,
           strategy: 'custom',
           ruleId: rule.id,
-          reason: `Pattern « ${rule.name} » déclenché → ${step.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}.`,
+          path: '',
+          reason: `Pattern « ${rule.name} » déclenché → ${node.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}.`,
           signal,
         };
       }
@@ -242,31 +260,32 @@ export function betPayout(
  *     lose -> palier suivant, sauf à maxStages -> reset forcé (anti-tilt)
  */
 export function nextProgression(
-  placedStage: number,
-  placedSide: Side,
-  strategy: Strategy | null,
-  ruleId: string | undefined,
+  advice: Advice,
   result: BetResult,
   config: CoachConfig,
 ): ProgressionState {
+  const { strategy, side, ruleId, path, stage } = advice;
+  if (!side) return { ...INITIAL_PROGRESSION };
   if (strategy === 'dragon') return { ...INITIAL_PROGRESSION };
 
-  // Pattern personnalisé : progression le long des étapes de la règle.
+  // Pattern personnalisé : on descend dans l'arbre selon gagné/perdu.
   if (strategy === 'custom') {
     const rule = config.customRules.find((r) => r.id === ruleId);
-    if (!rule || result === 'win') return { ...INITIAL_PROGRESSION };
+    if (!rule) return { ...INITIAL_PROGRESSION };
+    const p = path ?? '';
     if (result === 'push')
-      return { stage: placedStage, active: true, side: placedSide, strategy: 'custom', ruleId };
-    const nextStage = placedStage + 1;
-    if (nextStage >= rule.steps.length) return { ...INITIAL_PROGRESSION }; // fin des étapes
-    return { stage: nextStage, active: true, side: placedSide, strategy: 'custom', ruleId };
+      return { stage: p.length, active: true, side, strategy: 'custom', ruleId, path: p };
+    const node = nodeAtPath(rule.root, p);
+    const branch = result === 'win' ? node.onWin : node.onLose;
+    if (branch === 'stop') return { ...INITIAL_PROGRESSION };
+    const newPath = p + (result === 'win' ? 'W' : 'L');
+    return { stage: newPath.length, active: true, side, strategy: 'custom', ruleId, path: newPath };
   }
 
   // Zigzag
   if (result === 'win') return { ...INITIAL_PROGRESSION };
-  if (result === 'push')
-    return { stage: placedStage, active: true, side: placedSide, strategy: 'zigzag' };
-  const nextStage = placedStage + 1;
+  if (result === 'push') return { stage, active: true, side, strategy: 'zigzag' };
+  const nextStage = stage + 1;
   if (nextStage >= config.maxStages) return { ...INITIAL_PROGRESSION }; // STOP forcé
-  return { stage: nextStage, active: true, side: placedSide, strategy: 'zigzag' };
+  return { stage: nextStage, active: true, side, strategy: 'zigzag' };
 }
