@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { effectiveCap, stakeForStage } from '../engine/coach';
 import { formatMoney } from '../engine/money';
-import type { CoachConfig } from '../engine/types';
+import type { CoachConfig, Side } from '../engine/types';
 import { CustomRuleEditor } from './CustomRuleEditor';
+import { MiniRoad } from './MiniRoad';
+
+const opp = (s: Side): Side => (s === 'B' ? 'P' : 'B');
 
 export function StrategiesView({
   config,
@@ -35,6 +38,12 @@ export function StrategiesView({
   const ladder = Array.from({ length: form.maxStages }, (_, i) => stakeForStage(i, preview));
   const m = (n: number) => formatMoney(n, config.currency);
 
+  // séquences de démonstration (affichées comme dans le shoe)
+  const zzSeq = Array.from({ length: form.zigzagMinLen }, (_, i) => (i % 2 === 0 ? 'B' : 'P') as Side);
+  const zzBet = [{ side: opp(zzSeq[zzSeq.length - 1] ?? 'B'), amount: form.baseUnit }];
+  const dgSeq = Array.from({ length: form.dragonMinLen }, () => 'B' as Side);
+  const dgBet = [{ side: 'B' as Side, amount: form.baseUnit }];
+
   const save = () =>
     onSave({
       baseUnit: form.baseUnit,
@@ -66,14 +75,18 @@ export function StrategiesView({
             <input type="checkbox" checked={playZigzag} onChange={() => setPlayZigzag((v) => !v)} />
             <span className="strat-name">Zigzag / Ping-pong <span className="cn">單跳</span></span>
           </label>
-          <p className="coach-text">
-            Quand ça alterne (P,B,P,B…) sur <strong>{form.zigzagMinLen} coups</strong>, on parie la
-            continuation (l'opposé du dernier). Mise avec <strong>progression bornée</strong> ; si ça
-            perd jusqu'au dernier palier → STOP.
-          </p>
-          <div className="field inline">
-            <label>Coups alternés requis</label>
-            <input type="number" min={2} max={10} value={form.zigzagMinLen} onChange={num('zigzagMinLen')} />
+          <div className="strat-body">
+            <MiniRoad trigger={zzSeq} bets={zzBet} />
+            <div className="strat-info">
+              <p className="coach-text">
+                Ça alterne sur <strong>{form.zigzagMinLen} coups</strong> → on mise la continuation
+                (🎯 opposé du dernier), <strong>progression bornée</strong> ({ladder.map(m).join(' → ')} → STOP).
+              </p>
+              <div className="field inline">
+                <label>Coups alternés requis</label>
+                <input type="number" min={2} max={10} value={form.zigzagMinLen} onChange={num('zigzagMinLen')} />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -83,14 +96,18 @@ export function StrategiesView({
             <input type="checkbox" checked={playDragon} onChange={() => setPlayDragon((v) => !v)} />
             <span className="strat-name">Dragon <span className="cn">跟龍</span></span>
           </label>
-          <p className="coach-text">
-            Quand une série atteint <strong>{form.dragonMinLen}</strong> mêmes résultats, on la
-            suit (跟龍) en <strong>mise à plat</strong>. Si le dragon casse, on arrête (une seule
-            perte, pas de chasse).
-          </p>
-          <div className="field inline">
-            <label>Longueur de série requise</label>
-            <input type="number" min={3} max={12} value={form.dragonMinLen} onChange={num('dragonMinLen')} />
+          <div className="strat-body">
+            <MiniRoad trigger={dgSeq} bets={dgBet} />
+            <div className="strat-info">
+              <p className="coach-text">
+                Série de <strong>{form.dragonMinLen}</strong> mêmes → on suit (🎯 même couleur) en{' '}
+                <strong>mise à plat</strong>. Si le dragon casse, on arrête (pas de chasse).
+              </p>
+              <div className="field inline">
+                <label>Longueur de série requise</label>
+                <input type="number" min={3} max={12} value={form.dragonMinLen} onChange={num('dragonMinLen')} />
+              </div>
+            </div>
           </div>
         </div>
 

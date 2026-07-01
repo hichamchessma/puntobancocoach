@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMoney } from '../state/currency';
 import type { CustomRule, Side } from '../engine/types';
+import { MiniRoad } from './MiniRoad';
 
 let idCounter = 0;
 const newId = () => `rule_${Date.now().toString(36)}_${idCounter++}`;
@@ -140,16 +141,16 @@ export function CustomRuleEditor({
                 <input type="checkbox" checked={r.enabled} onChange={() => toggle(r.id)} />
                 <strong>{r.name}</strong>
               </label>
-              <div className="trigger-dots">
-                {r.trigger.map((s, i) => (
-                  <span key={i} className={`tdot ${s === 'B' ? 'R' : 'B'}`} />
-                ))}
-                <span className="rule-arrow">→</span>
-                {r.steps.map((s, i) => (
-                  <span key={i} className="step-chip">
-                    <span className={`tdot mini ${s.side === 'B' ? 'R' : 'B'}`} /> {money(s.amount)}
-                  </span>
-                ))}
+              <div className="rule-visual">
+                <MiniRoad trigger={r.trigger} bets={r.steps} />
+                <div className="rule-amounts">
+                  {r.steps.map((s, i) => (
+                    <span key={i} className="step-chip">
+                      {i > 0 && <span className="rule-arrow">→</span>}
+                      <span className={`tdot mini ${s.side === 'B' ? 'R' : 'B'}`} /> {money(s.amount)}
+                    </span>
+                  ))}
+                </div>
               </div>
               <button className="link-btn" onClick={() => del(r.id)}>supprimer</button>
             </div>
