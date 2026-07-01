@@ -57,26 +57,21 @@ export interface PatternSignal {
 export type Strategy = 'zigzag' | 'dragon' | 'custom';
 
 // ===== Règles / patterns personnalisés =====
-// Un nœud de mise dans l'arbre de décision. "continue" = miser la même couleur
-// que le dernier résultat (la série continue), "break" = miser la couleur
-// opposée. Après résolution, onWin / onLose mènent soit à 'stop' (on arrête),
-// soit à un autre nœud de mise (on enchaîne).
-export interface BetNode {
-  bet: 'continue' | 'break';
+// Une étape de mise : on mise `amount` sur le côté `side` (couleur absolue).
+export interface RuleStep {
+  side: Side; // couleur pariée : 'B' = rouge (Banquier), 'P' = bleu (Joueur)
   amount: number;
-  onWin: BetNode | 'stop';
-  onLose: BetNode | 'stop';
 }
 
-// Un pattern personnalisé. Le `trigger` est une FORME relative (rouge=Banquier,
-// bleu=Joueur) : seules les transitions (même/différent) comptent, donc le motif
-// marche aussi bien pour une série rouge que bleue. `root` est l'arbre de mise.
+// Un pattern personnalisé. `trigger` = la suite de résultats à détecter (couleurs
+// exactes, rouge=Banquier 'B', bleu=Joueur 'P'). `steps` = les mises à placer une
+// fois le signal apparu (si une perd → étape suivante ; gagne → reset ; fin → STOP).
 export interface CustomRule {
   id: string;
   name: string;
   enabled: boolean;
-  trigger: ('R' | 'B')[]; // au moins 2 pastilles
-  root: BetNode; // arbre de décision de mise
+  trigger: Side[];
+  steps: RuleStep[];
 }
 
 // Conseil du coach pour le prochain coup
@@ -89,7 +84,6 @@ export interface Advice {
   stage: number;
   strategy: Strategy | null; // stratégie qui motive ce conseil
   ruleId?: string; // id de la règle custom si strategy === 'custom'
-  path?: string; // chemin dans l'arbre de mise (suite de 'W'/'L') pour custom
   reason: string;
   signal: PatternSignal;
   riskNote?: string; // avertissement anti-tilt éventuel
@@ -117,5 +111,4 @@ export interface ProgressionState {
   side: Side | null; // côté courant suivi par la progression
   strategy: Strategy | null; // stratégie de la progression en cours
   ruleId?: string; // règle custom en cours (si strategy === 'custom')
-  path?: string; // position dans l'arbre de mise (suite de 'W'/'L')
 }

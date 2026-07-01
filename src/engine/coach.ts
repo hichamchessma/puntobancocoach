@@ -10,25 +10,7 @@ import {
   trailingZigzag,
   withoutTies,
 } from './patterns';
-import type {
-  Advice,
-  BetNode,
-  BetResult,
-  CoachConfig,
-  ProgressionState,
-  Side,
-} from './types';
-
-/** Nœud de mise courant dans l'arbre, en suivant un chemin de 'W'/'L'. */
-export function nodeAtPath(root: BetNode, path: string): BetNode {
-  let n = root;
-  for (const ch of path) {
-    const nx = ch === 'W' ? n.onWin : n.onLose;
-    if (nx === 'stop') return n; // sécurité
-    n = nx;
-  }
-  return n;
-}
+import type { Advice, BetResult, CoachConfig, ProgressionState, Side } from './types';
 
 export const DEFAULT_CONFIG: CoachConfig = {
   baseUnit: 200,
@@ -87,28 +69,20 @@ export function computeAdvice(
   const seq = withoutTies(outcomes);
   const last: Side | null = seq.length ? seq[seq.length - 1] : null;
   const sideName = (s: Side) => (s === 'P' ? 'Joueur' : 'Banquier');
-  const stepSide = (bet: 'continue' | 'break'): Side =>
-    last ? (bet === 'continue' ? last : opposite(last)) : 'B';
 
   // 0) Progression d'un pattern personnalisé en cours (prioritaire)
   if (prog.active && prog.strategy === 'custom' && prog.ruleId) {
     const rule = config.customRules.find((r) => r.id === prog.ruleId && r.enabled);
-    if (rule) {
-      const path = prog.path ?? '';
-      const node = nodeAtPath(rule.root, path);
-      const hist = path
-        .split('')
-        .map((c) => (c === 'W' ? 'gagné' : 'perdu'))
-        .join(' → ');
+    if (rule && prog.stage < rule.steps.length) {
+      const step = rule.steps[prog.stage];
       return {
         action: 'bet',
-        side: stepSide(node.bet),
-        amount: clampStake(node.amount, config),
-        stage: path.length,
+        side: step.side,
+        amount: clampStake(step.amount, config),
+        stage: prog.stage,
         strategy: 'custom',
         ruleId: rule.id,
-        path,
-        reason: `${rule.name} — ${path.length === 0 ? 'mise déclenchée' : `suite (${hist})`} : ${node.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}.`,
+        reason: `${rule.name} — mise ${prog.stage + 1}/${rule.steps.length} sur ${sideName(step.side)}.`,
         signal,
       };
     }
@@ -118,7 +92,7 @@ export function computeAdvice(
       amount: 0,
       stage: prog.stage,
       strategy: null,
-      reason: 'Pattern introuvable — STOP, on repart à zéro.',
+      reason: 'Pattern terminé — STOP, on repart à zéro.',
       signal,
     };
   }
@@ -158,18 +132,17 @@ export function computeAdvice(
   // 1bis) Démarrage d'un pattern personnalisé (prioritaire sur zigzag/dragon)
   if (last) {
     for (const rule of config.customRules) {
-      if (!rule.enabled || rule.trigger.length < 2) continue;
+      if (!rule.enabled || rule.steps.length === 0) continue;
       if (ruleMatchesTail(rule.trigger, seq)) {
-        const node = rule.root;
+        const step = rule.steps[0];
         return {
           action: 'bet',
-          side: stepSide(node.bet),
-          amount: clampStake(node.amount, config),
+          side: step.side,
+          amount: clampStake(step.amount, config),
           stage: 0,
           strategy: 'custom',
           ruleId: rule.id,
-          path: '',
-          reason: `Pattern « ${rule.name} » déclenché → ${node.bet === 'continue' ? 'on suit la couleur' : 'on parie la cassure'}.`,
+          reason: `Pattern « ${rule.name} » déclenché → mise sur ${sideName(step.side)}.`,
           signal,
         };
       }
@@ -264,22 +237,19 @@ export function nextProgression(
   result: BetResult,
   config: CoachConfig,
 ): ProgressionState {
-  const { strategy, side, ruleId, path, stage } = advice;
+  const { strategy, side, ruleId, stage } = advice;
   if (!side) return { ...INITIAL_PROGRESSION };
   if (strategy === 'dragon') return { ...INITIAL_PROGRESSION };
 
-  // Pattern personnalisé : on descend dans l'arbre selon gagné/perdu.
+  // Pattern personnalisé : progression le long des étapes de mise.
   if (strategy === 'custom') {
     const rule = config.customRules.find((r) => r.id === ruleId);
-    if (!rule) return { ...INITIAL_PROGRESSION };
-    const p = path ?? '';
+    if (!rule || result === 'win') return { ...INITIAL_PROGRESSION };
     if (result === 'push')
-      return { stage: p.length, active: true, side, strategy: 'custom', ruleId, path: p };
-    const node = nodeAtPath(rule.root, p);
-    const branch = result === 'win' ? node.onWin : node.onLose;
-    if (branch === 'stop') return { ...INITIAL_PROGRESSION };
-    const newPath = p + (result === 'win' ? 'W' : 'L');
-    return { stage: newPath.length, active: true, side, strategy: 'custom', ruleId, path: newPath };
+      return { stage, active: true, side, strategy: 'custom', ruleId };
+    const nextStage = stage + 1;
+    if (nextStage >= rule.steps.length) return { ...INITIAL_PROGRESSION };
+    return { stage: nextStage, active: true, side, strategy: 'custom', ruleId };
   }
 
   // Zigzag

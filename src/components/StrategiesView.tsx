@@ -49,9 +49,15 @@ export function StrategiesView({
 
   return (
     <div className="col">
+      <CustomRuleEditor
+        rules={config.customRules}
+        baseUnit={config.baseUnit}
+        onChange={(customRules) => onSave({ customRules })}
+      />
+
       <div className="panel">
         <h2>
-          Stratégies du coach <span className="sub">· ce sur quoi il mise</span>
+          Stratégies intégrées <span className="sub">· zigzag &amp; dragon</span>
         </h2>
 
         {/* ZIGZAG */}
@@ -117,12 +123,6 @@ export function StrategiesView({
           <button className="btn gold" onClick={save}>Enregistrer la stratégie</button>
         </div>
       </div>
-
-      <CustomRuleEditor
-        rules={config.customRules}
-        baseUnit={config.baseUnit}
-        onChange={(customRules) => onSave({ customRules })}
-      />
     </div>
   );
 }

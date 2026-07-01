@@ -1,135 +1,45 @@
 import { useMemo, useState } from 'react';
 import { useMoney } from '../state/currency';
-import type { BetNode, CustomRule } from '../engine/types';
+import type { CustomRule, Side } from '../engine/types';
 
 let idCounter = 0;
 const newId = () => `rule_${Date.now().toString(36)}_${idCounter++}`;
 
 const ROWS = 6;
 const COLS = 12;
-const MAX_DEPTH = 5;
+const CELL = 26;
+const GAP = 3;
+const STEP = CELL + GAP;
 const key = (c: number, r: number) => `${c}_${r}`;
-type Grid = Record<string, 'R' | 'B'>;
 
-const freshNode = (baseUnit: number): BetNode => ({
-  bet: 'continue',
-  amount: baseUnit,
-  onWin: 'stop',
-  onLose: 'stop',
-});
+type Color = 'R' | 'B'; // R = rouge (Banquier), B = bleu (Joueur)
+const colorToSide = (c: Color): Side => (c === 'R' ? 'B' : 'P');
+interface Cell {
+  color: Color;
+  bet?: { color: Color; amount: number };
+}
+type Grid = Record<string, Cell>;
+type Brush = 'R' | 'B' | 'bet';
 
 function readOrder(grid: Grid) {
   return Object.entries(grid)
-    .map(([k, color]) => {
+    .map(([k, v]) => {
       const [c, r] = k.split('_').map(Number);
-      return { col: c, row: r, color };
+      return { col: c, row: r, key: k, ...v };
     })
     .sort((a, b) => a.col - b.col || a.row - b.row);
 }
 
-const betLabel = (b: 'continue' | 'break') => (b === 'continue' ? 'suivre' : 'casser');
-
-function describe(node: BetNode, money: (n: number) => string): string {
-  const w = node.onWin === 'stop' ? 'arrêt' : '…';
-  const l = node.onLose === 'stop' ? 'arrêt' : '…';
-  return `${betLabel(node.bet)} ${money(node.amount)} (gagné → ${w} · perdu → ${l})`;
+function gridToRule(grid: Grid, name: string): CustomRule | string {
+  const seq = readOrder(grid);
+  if (seq.length === 0) return 'Dessine le signal (pastilles rouge/bleu).';
+  const betIdx = seq.map((e, i) => (e.bet ? i : -1)).filter((i) => i >= 0);
+  if (betIdx.length === 0) return 'Passe en « Entrer mise » et clique une pastille pour définir une mise.';
+  const trigger: Side[] = seq.slice(0, betIdx[0]).map((e) => colorToSide(e.color));
+  const steps = betIdx.map((i) => ({ side: colorToSide(seq[i].bet!.color), amount: seq[i].bet!.amount }));
+  return { id: newId(), name: name.trim() || 'Pattern', enabled: true, trigger, steps };
 }
 
-/* ===== Éditeur récursif d'un nœud de mise ===== */
-function BetNodeEditor({
-  node,
-  onChange,
-  baseUnit,
-  depth,
-}: {
-  node: BetNode;
-  onChange: (n: BetNode) => void;
-  baseUnit: number;
-  depth: number;
-}) {
-  return (
-    <div className="node-card">
-      <div className="node-line">
-        <span className="node-tag">Miser</span>
-        <select
-          className="select"
-          value={node.bet}
-          onChange={(e) => onChange({ ...node, bet: e.target.value as BetNode['bet'] })}
-        >
-          <option value="continue">Suivre (même couleur que le dernier)</option>
-          <option value="break">Casser (couleur opposée)</option>
-        </select>
-        <input
-          type="number"
-          min={0}
-          step={baseUnit}
-          value={node.amount}
-          onChange={(e) => onChange({ ...node, amount: Number(e.target.value) })}
-        />
-      </div>
-
-      <Branch
-        label="Si GAGNE"
-        cls="win"
-        branch={node.onWin}
-        baseUnit={baseUnit}
-        depth={depth}
-        onChange={(b) => onChange({ ...node, onWin: b })}
-      />
-      <Branch
-        label="Si PERD"
-        cls="lose"
-        branch={node.onLose}
-        baseUnit={baseUnit}
-        depth={depth}
-        onChange={(b) => onChange({ ...node, onLose: b })}
-      />
-    </div>
-  );
-}
-
-function Branch({
-  label,
-  cls,
-  branch,
-  baseUnit,
-  depth,
-  onChange,
-}: {
-  label: string;
-  cls: 'win' | 'lose';
-  branch: BetNode | 'stop';
-  baseUnit: number;
-  depth: number;
-  onChange: (b: BetNode | 'stop') => void;
-}) {
-  return (
-    <div className={`branch ${cls}`}>
-      <div className="branch-head">
-        <span className="branch-label">{label} →</span>
-        {branch === 'stop' ? (
-          <>
-            <span className="branch-stop">Arrêter</span>
-            {depth < MAX_DEPTH && (
-              <button className="btn" onClick={() => onChange(freshNode(baseUnit))}>
-                + Enchaîner une mise
-              </button>
-            )}
-          </>
-        ) : (
-          <button className="btn" onClick={() => onChange('stop')}>
-            ✕ Arrêter ici
-          </button>
-        )}
-      </div>
-      {branch !== 'stop' && (
-        <BetNodeEditor node={branch} onChange={onChange} baseUnit={baseUnit} depth={depth + 1} />
-      )}
-    </div>
-  );
-}
-
-/* ===== Éditeur principal ===== */
 export function CustomRuleEditor({
   rules,
   baseUnit,
@@ -140,69 +50,88 @@ export function CustomRuleEditor({
   onChange: (rules: CustomRule[]) => void;
 }) {
   const money = useMoney();
-  const [phase, setPhase] = useState<'draw' | 'bet'>('draw');
   const [name, setName] = useState('');
-  const [brush, setBrush] = useState<'R' | 'B'>('R');
+  const [brush, setBrush] = useState<Brush>('R');
   const [grid, setGrid] = useState<Grid>({});
-  const [root, setRoot] = useState<BetNode>(freshNode(baseUnit));
+  const [editing, setEditing] = useState<{ c: number; r: number } | null>(null);
   const [err, setErr] = useState('');
 
   const seq = useMemo(() => readOrder(grid), [grid]);
-  const trigger = seq.map((e) => e.color);
+  const betCells = seq.filter((e) => e.bet);
 
-  // clic = poser / re-clic = effacer (booléen), sans passer par une gomme
   const click = (c: number, r: number) => {
+    setErr('');
+    const k = key(c, r);
+    if (brush === 'bet') {
+      if (!grid[k]) return; // pas de pastille ici
+      setGrid((g) =>
+        g[k].bet ? g : { ...g, [k]: { ...g[k], bet: { color: g[k].color, amount: baseUnit } } },
+      );
+      setEditing({ c, r });
+      return;
+    }
+    // R / B : clic pose, re-clic efface
+    setEditing(null);
     setGrid((g) => {
       const next = { ...g };
-      if (next[key(c, r)]) delete next[key(c, r)];
-      else next[key(c, r)] = brush;
+      if (next[k]) delete next[k];
+      else next[k] = { color: brush };
       return next;
     });
   };
 
-  const toBet = () => {
-    if (trigger.length < 2) {
-      setErr('Dessine au moins 2 pastilles pour le signal.');
-      return;
-    }
-    setErr('');
-    setPhase('bet');
+  const setBet = (patch: Partial<{ color: Color; amount: number }>) => {
+    if (!editing) return;
+    const k = key(editing.c, editing.r);
+    setGrid((g) => ({ ...g, [k]: { ...g[k], bet: { ...g[k].bet!, ...patch } } }));
+  };
+  const removeBet = () => {
+    if (!editing) return;
+    const k = key(editing.c, editing.r);
+    setGrid((g) => ({ ...g, [k]: { color: g[k].color } }));
+    setEditing(null);
+  };
+
+  const pickBrush = (b: Brush) => {
+    setBrush(b);
+    setEditing(null);
   };
 
   const save = () => {
-    if (trigger.length < 2) {
-      setErr('Signal trop court.');
-      return;
-    }
-    onChange([...rules, { id: newId(), name: name.trim() || 'Pattern', enabled: true, trigger, root }]);
+    const res = gridToRule(grid, name);
+    if (typeof res === 'string') return setErr(res);
+    onChange([...rules, res]);
     setName('');
     setGrid({});
-    setRoot(freshNode(baseUnit));
-    setPhase('draw');
+    setEditing(null);
   };
 
   const loadExample = () => {
     setName('Changement + 2 mêmes → 3e');
-    setGrid({ [key(0, 0)]: 'R', [key(1, 0)]: 'B', [key(1, 1)]: 'B' });
-    setRoot({
-      bet: 'continue',
-      amount: baseUnit,
-      onWin: 'stop',
-      onLose: { bet: 'continue', amount: baseUnit * 2, onWin: 'stop', onLose: 'stop' },
+    setGrid({
+      [key(0, 0)]: { color: 'R' },
+      [key(1, 0)]: { color: 'B' },
+      [key(1, 1)]: { color: 'B' },
+      [key(1, 2)]: { color: 'B', bet: { color: 'B', amount: baseUnit } },
     });
-    setPhase('draw');
+    setBrush('bet');
   };
 
   const toggle = (id: string) =>
     onChange(rules.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
   const del = (id: string) => onChange(rules.filter((r) => r.id !== id));
 
+  const editingCell = editing ? grid[key(editing.c, editing.r)] : null;
+  const popLeft = editing ? Math.min(editing.c * STEP + 34, COLS * STEP - 214) : 0;
+  const popTop = editing ? editing.r * STEP : 0;
+
   return (
     <div className="panel">
       <h2>
-        Patterns personnalisés <span className="sub">· dessine le signal, puis l'arbre de mise</span>
+        Patterns personnalisés <span className="sub">· dessine le signal, clique pour miser</span>
       </h2>
 
+      {/* Règles enregistrées */}
       {rules.length > 0 && (
         <div className="rule-list">
           {rules.map((r) => (
@@ -212,15 +141,17 @@ export function CustomRuleEditor({
                 <strong>{r.name}</strong>
               </label>
               <div className="trigger-dots">
-                {r.trigger.map((c, i) => (
-                  <span key={i} className={`tdot ${c}`} />
+                {r.trigger.map((s, i) => (
+                  <span key={i} className={`tdot ${s === 'B' ? 'R' : 'B'}`} />
                 ))}
                 <span className="rule-arrow">→</span>
-                <span className="step-chip">{describe(r.root, money)}</span>
+                {r.steps.map((s, i) => (
+                  <span key={i} className="step-chip">
+                    <span className={`tdot mini ${s.side === 'B' ? 'R' : 'B'}`} /> {money(s.amount)}
+                  </span>
+                ))}
               </div>
-              <button className="link-btn" onClick={() => del(r.id)}>
-                supprimer
-              </button>
+              <button className="link-btn" onClick={() => del(r.id)}>supprimer</button>
             </div>
           ))}
         </div>
@@ -232,67 +163,92 @@ export function CustomRuleEditor({
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex. Changement + 2 mêmes" />
       </div>
 
-      {phase === 'draw' ? (
-        <>
-          <div className="brush-bar">
-            <span className="muted">Couleur :</span>
-            <button className={`brush b ${brush === 'R' ? 'on' : ''}`} onClick={() => setBrush('R')}>
-              🔴 Rouge (Banquier)
-            </button>
-            <button className={`brush p ${brush === 'B' ? 'on' : ''}`} onClick={() => setBrush('B')}>
-              🔵 Bleu (Joueur)
-            </button>
-            <button className="brush" onClick={() => setGrid({})}>Vider</button>
-          </div>
+      <div className="brush-bar">
+        <button className={`brush b ${brush === 'R' ? 'on' : ''}`} onClick={() => pickBrush('R')}>🔴 Rouge</button>
+        <button className={`brush p ${brush === 'B' ? 'on' : ''}`} onClick={() => pickBrush('B')}>🔵 Bleu</button>
+        <button className={`brush g ${brush === 'bet' ? 'on' : ''}`} onClick={() => pickBrush('bet')}>🎯 Entrer mise</button>
+        <button className="brush" onClick={() => { setGrid({}); setEditing(null); }}>Vider</button>
+      </div>
 
-          <div className="pattern-canvas" style={{ gridTemplateColumns: `repeat(${COLS}, 26px)` }}>
-            {Array.from({ length: COLS }).flatMap((_, c) =>
-              Array.from({ length: ROWS }).map((__, r) => {
-                const cell = grid[key(c, r)];
-                return (
-                  <button
-                    key={key(c, r)}
-                    className={`pcell ${cell ?? ''}`}
-                    style={{ gridColumn: c + 1, gridRow: r + 1 }}
-                    onClick={() => click(c, r)}
-                  />
-                );
-              }),
-            )}
-          </div>
-          <div className="hint">
-            Clique pour poser une pastille, re-clique dessus pour l'effacer. La forme est{' '}
-            <strong>relative</strong> (marche pour rouge comme pour bleu).
-          </div>
+      {/* Canvas + popover */}
+      <div className="canvas-wrap">
+        <div className="pattern-canvas" style={{ gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`, width: COLS * STEP }}>
+          {Array.from({ length: COLS }).flatMap((_, c) =>
+            Array.from({ length: ROWS }).map((__, r) => {
+              const cell = grid[key(c, r)];
+              const isEd = editing?.c === c && editing?.r === r;
+              return (
+                <button
+                  key={key(c, r)}
+                  className={`pcell ${cell ? cell.color : ''} ${cell?.bet ? 'bet' : ''} ${isEd ? 'editing' : ''}`}
+                  style={{ gridColumn: c + 1, gridRow: r + 1 }}
+                  onClick={() => click(c, r)}
+                >
+                  {cell?.bet ? '🎯' : ''}
+                </button>
+              );
+            }),
+          )}
+        </div>
 
-          {err && <div className="risk" style={{ marginTop: 8 }}>⚠ {err}</div>}
-          <div className="btn-row" style={{ marginTop: 12 }}>
-            <button className="btn gold" onClick={toBet}>Valider le signal →</button>
-            <button className="btn" onClick={loadExample}>Charger l'exemple</button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="field">
-            <label>Signal (déclencheur)</label>
-            <div className="trigger-dots build">
-              {trigger.map((c, i) => (
-                <span key={i} className={`tdot ${c}`} />
-              ))}
-              <span className="muted" style={{ marginLeft: 8 }}>puis on mise :</span>
+        {editing && editingCell?.bet && (
+          <div className="bet-pop" style={{ left: Math.max(0, popLeft), top: popTop }}>
+            <div className="bet-pop-title">Mise sur ce résultat</div>
+            <div className="bet-pop-row">
+              <span className="muted">Couleur :</span>
+              <button
+                className={`chip-btn ${editingCell.bet.color === 'R' ? 'on' : ''}`}
+                onClick={() => setBet({ color: 'R' })}
+              >🔴 Rouge</button>
+              <button
+                className={`chip-btn ${editingCell.bet.color === 'B' ? 'on' : ''}`}
+                onClick={() => setBet({ color: 'B' })}
+              >🔵 Bleu</button>
+            </div>
+            <div className="bet-pop-row">
+              <span className="muted">Montant :</span>
+              <input
+                type="number"
+                min={0}
+                step={baseUnit}
+                value={editingCell.bet.amount}
+                onChange={(e) => setBet({ amount: Number(e.target.value) })}
+                autoFocus
+              />
+            </div>
+            <div className="bet-pop-row" style={{ justifyContent: 'space-between' }}>
+              <button className="link-btn" onClick={removeBet}>retirer</button>
+              <button className="btn gold" onClick={() => setEditing(null)}>OK</button>
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="bet-tree">
-            <BetNodeEditor node={root} onChange={setRoot} baseUnit={baseUnit} depth={0} />
-          </div>
+      <div className="hint">
+        Clique pour poser une pastille (re-clique = effacer). Passe en <strong>🎯 Entrer mise</strong>{' '}
+        et clique une pastille pour miser dessus (couleur + montant). Plusieurs mises = progression
+        (si une perd → la suivante ; gagne → on encaisse).
+      </div>
 
-          <div className="btn-row" style={{ marginTop: 12 }}>
-            <button className="btn" onClick={() => setPhase('draw')}>← Modifier le signal</button>
-            <button className="btn gold" onClick={save}>Enregistrer le pattern</button>
-          </div>
-        </>
+      {/* Récap des mises */}
+      {betCells.length > 0 && (
+        <div className="muted" style={{ marginTop: 8 }}>
+          Mises :{' '}
+          {betCells.map((e, i) => (
+            <span key={e.key}>
+              {i > 0 && ' → '}
+              {i + 1}) <span className={`tdot mini ${e.bet!.color}`} /> {money(e.bet!.amount)}
+            </span>
+          ))}
+        </div>
       )}
+
+      {err && <div className="risk" style={{ marginTop: 8 }}>⚠ {err}</div>}
+
+      <div className="btn-row" style={{ marginTop: 12 }}>
+        <button className="btn gold" onClick={save}>Enregistrer le pattern</button>
+        <button className="btn" onClick={loadExample}>Charger l'exemple</button>
+      </div>
     </div>
   );
 }

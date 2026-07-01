@@ -34,17 +34,15 @@ export function transitionsOf<T>(seq: T[]): boolean[] {
 }
 
 /**
- * Un pattern (forme rouge/bleu) matche-t-il la fin de la séquence ?
- * On compare uniquement les TRANSITIONS (même/différent), donc le motif est
- * direction-agnostique : il marche pour une série rouge comme pour une bleue.
+ * Le signal (couleurs exactes) matche-t-il la fin de la séquence ?
+ * Rouge = Banquier 'B', bleu = Joueur 'P'. Trigger vide = matche toujours.
  */
-export function ruleMatchesTail(trigger: ('R' | 'B')[], seq: Side[]): boolean {
+export function ruleMatchesTail(trigger: Side[], seq: Side[]): boolean {
   const L = trigger.length;
-  if (L < 2 || seq.length < L) return false;
+  if (L === 0) return true;
+  if (seq.length < L) return false;
   const tail = seq.slice(-L);
-  const tShape = transitionsOf(tail);
-  const rShape = transitionsOf(trigger);
-  return tShape.length === rShape.length && tShape.every((v, i) => v === rShape[i]);
+  return tail.every((v, i) => v === trigger[i]);
 }
 
 /** Longueur de la série identique en fin de séquence (P,P,P -> 3) */
