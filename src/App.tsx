@@ -173,6 +173,12 @@ export default function App() {
         setShowCoach(false);
         return;
       }
+      // A : retirer toute mise posée sur la table
+      if ((e.key === 'a' || e.key === 'A') && !inField()) {
+        e.preventDefault();
+        dispatch({ type: 'SET_PENDING_BET', bet: null });
+        return;
+      }
       if (e.code !== 'Space') return;
       if (showSettings || showCoach || mode !== 'sim' || inField()) return;
       e.preventDefault();

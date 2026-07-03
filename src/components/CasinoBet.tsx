@@ -100,7 +100,7 @@ export function CasinoBet({
               Jeton sélectionné : <strong style={{ color: 'var(--gold)' }}>{money(chip)}</strong>
               {pendingBet && (
                 <button className="link-btn" onClick={() => onPlace(null)}>
-                  retirer la mise
+                  retirer la mise <span className="kbd">A</span>
                 </button>
               )}
             </div>
