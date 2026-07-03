@@ -105,11 +105,11 @@ body {
 /* ===== Layout ===== */
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 366px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 14px;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
 /* min-width:0 indispensable : sinon les roads larges font déborder toute la page */

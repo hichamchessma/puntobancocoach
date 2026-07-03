@@ -323,17 +323,17 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </div>
 
+            {/* ===== Colonne latérale ===== */}
+            <div className="col">
               <div className="panel">
                 <h2>
                   Shoe History <span className="sub">· {outcomes.length} coups</span>
                 </h2>
                 <Roads outcomes={outcomes} />
               </div>
-            </div>
 
-            {/* ===== Colonne latérale ===== */}
-            <div className="col">
               <div className="panel">
                 <h2>Statistiques de session</h2>
                 <SessionStats stack={stack} startStack={startStack} config={config} hands={hands} outcomes={outcomes} />
