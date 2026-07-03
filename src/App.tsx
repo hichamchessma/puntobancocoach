@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { AdvicePanel } from './components/AdvicePanel';
 import { BacktestView } from './components/BacktestView';
-import { BetControls } from './components/BetControls';
+import { CasinoBet } from './components/CasinoBet';
 import { CoachOverlay } from './components/CoachOverlay';
 import { DealSpeedControl, msPerCard, type SpeedMode } from './components/DealSpeedControl';
 import { HandArea, type Reveal } from './components/HandArea';
 import { HistoryList } from './components/HistoryList';
-import { OnboardingModal } from './components/OnboardingModal';
 import type { ToastData } from './components/ResultToast';
+import type { Side } from './engine/types';
 import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
 import { SettingsModal } from './components/SettingsModal';
@@ -47,7 +47,6 @@ function revealCounts(order: ('P' | 'B')[], n: number): Reveal {
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, undefined, () => createInitialState());
-  const [started, setStarted] = useState(false);
   const [view, setView] = useState<View>('play');
   const [showSettings, setShowSettings] = useState(false);
   const [showCoach, setShowCoach] = useState(false);
@@ -71,11 +70,11 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, pendingBet, config, stack, startStack, hands } = state;
+  const { mode, betMode, config, stack, startStack, hands } = state;
 
   const order = dealSlots(lastHand);
   const total = order.length;
-  const playable = started && view === 'play';
+  const playable = view === 'play';
 
   const clearTimer = useCallback(() => {
     if (timerRef.current != null) {
@@ -113,6 +112,15 @@ export default function App() {
     clearTimer();
     setRevealed(total);
   }, [clearTimer, total]);
+
+  // Mise casino : on pose la mise (jetons) puis, en simulateur, on distribue.
+  const onBetDeal = useCallback(
+    (side: Side, amount: number) => {
+      dispatch({ type: 'SET_PENDING_BET', bet: amount > 0 ? { side, amount } : null });
+      if (mode === 'sim') dispatch({ type: 'DEAL' });
+    },
+    [mode],
+  );
 
   // Toast résultat : montré quand la main est finie
   useEffect(() => {
@@ -251,7 +259,22 @@ export default function App() {
                 </h2>
                 <HandArea hand={lastHand} mode={mode} reveal={reveal} settled={settled} toast={toast} />
 
-                <div className="controls" style={{ marginTop: 14 }}>
+                <div className="felt-banner">
+                  <div className="fb-item">
+                    <span className="fb-k">BANKROLL</span>
+                    <span className="fb-v gold">{formatMoney(stack, config.currency)}</span>
+                  </div>
+                  <div className="fb-item">
+                    <span className="fb-k">PROFIT</span>
+                    <span className={`fb-v ${stack - startStack >= 0 ? 'pos' : 'neg'}`}>
+                      {stack - startStack >= 0 ? '+' : ''}
+                      {formatMoney(stack - startStack, config.currency)}
+                    </span>
+                  </div>
+                  <div className="fb-rule">BANQUIER 6 = PAIE MOITIÉ</div>
+                </div>
+
+                <div className="controls" style={{ marginTop: 12 }}>
                   <div className="seg-toggle">
                     <button
                       className={mode === 'sim' ? 'active' : ''}
@@ -275,15 +298,17 @@ export default function App() {
                   </button>
                 </div>
 
-                <BetControls
+                <CasinoBet
                   betMode={betMode}
-                  pendingBet={pendingBet}
-                  advice={advice}
-                  baseUnit={config.baseUnit}
-                  maxBet={config.maxBet}
                   stack={stack}
+                  maxBet={config.maxBet}
+                  baseUnit={config.baseUnit}
+                  advice={advice}
+                  dealsOnPlace={mode === 'sim'}
+                  showDealButton={mode === 'sim'}
                   onBetMode={(m) => dispatch({ type: 'SET_BET_MODE', betMode: m })}
-                  onPendingBet={(b) => dispatch({ type: 'SET_PENDING_BET', bet: b })}
+                  onBetDeal={onBetDeal}
+                  onDeal={() => (animating ? finishReveal() : deal())}
                 />
 
                 {mode === 'sim' && (
@@ -292,13 +317,9 @@ export default function App() {
                   </div>
                 )}
 
-                {mode === 'sim' ? (
-                  <button className="btn gold big" style={{ marginTop: 12 }} onClick={() => (animating ? finishReveal() : deal())}>
-                    {animating ? '⏭ Voir le résultat' : '🂠 Distribuer la main suivante'}{' '}
-                    <span className="kbd">Espace</span>
-                  </button>
-                ) : (
-                  <div className="btn-row" style={{ marginTop: 12 }}>
+                {mode === 'manual' && (
+                  <div className="btn-row" style={{ marginTop: 12, alignItems: 'center' }}>
+                    <span className="muted" style={{ marginRight: 6 }}>Résultat réel :</span>
                     <button className="btn p big" onClick={() => dispatch({ type: 'RECORD', outcome: 'P' })}>JOUEUR</button>
                     <button className="btn b big" onClick={() => dispatch({ type: 'RECORD', outcome: 'B' })}>BANQUIER</button>
                     <button className="btn t big" onClick={() => dispatch({ type: 'RECORD', outcome: 'T' })}>ÉGALITÉ</button>
@@ -349,14 +370,6 @@ export default function App() {
             config={config}
             onSave={(patch) => dispatch({ type: 'SET_CONFIG', patch })}
             onClose={() => setShowSettings(false)}
-          />
-        )}
-        {!started && (
-          <OnboardingModal
-            onStart={({ stack: s, currency, baseUnit }) => {
-              dispatch({ type: 'SET_CONFIG', patch: { stack: s, currency, baseUnit } });
-              setStarted(true);
-            }}
           />
         )}
       </div>
