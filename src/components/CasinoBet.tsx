@@ -93,7 +93,7 @@ export function CasinoBet({
                 onClick={() => setChip(d)}
                 title={`Jeton ${money(d)}`}
               >
-                <Chip value={d} color={CHIP_PALETTE[i % CHIP_PALETTE.length]} size={54} />
+                <Chip value={d} color={CHIP_PALETTE[i % CHIP_PALETTE.length]} size={40} />
               </button>
             ))}
             <div className="rack-hint">
@@ -157,8 +157,8 @@ function BetZone({
         {stack.map((v, i) => {
           const idx = denoms.indexOf(v);
           return (
-            <span key={i} className="bz-chip" style={{ marginTop: i ? -30 : 0, zIndex: i }}>
-              <Chip value={v} color={CHIP_PALETTE[(idx < 0 ? 0 : idx) % CHIP_PALETTE.length]} size={40} />
+            <span key={i} className="bz-chip" style={{ marginTop: i ? -22 : 0, zIndex: i }}>
+              <Chip value={v} color={CHIP_PALETTE[(idx < 0 ? 0 : idx) % CHIP_PALETTE.length]} size={30} />
             </span>
           );
         })}
