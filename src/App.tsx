@@ -7,7 +7,6 @@ import { DealSpeedControl, msPerCard, type SpeedMode } from './components/DealSp
 import { HandArea, type Reveal } from './components/HandArea';
 import { HistoryList } from './components/HistoryList';
 import type { ToastData } from './components/ResultToast';
-import type { Side } from './engine/types';
 import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
 import { SettingsModal } from './components/SettingsModal';
@@ -70,7 +69,7 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, config, stack, startStack, hands } = state;
+  const { mode, betMode, pendingBet, config, stack, startStack, hands } = state;
 
   const order = dealSlots(lastHand);
   const total = order.length;
@@ -113,14 +112,6 @@ export default function App() {
     setRevealed(total);
   }, [clearTimer, total]);
 
-  // Mise casino : on pose la mise (jetons) puis, en simulateur, on distribue.
-  const onBetDeal = useCallback(
-    (side: Side, amount: number) => {
-      dispatch({ type: 'SET_PENDING_BET', bet: amount > 0 ? { side, amount } : null });
-      if (mode === 'sim') dispatch({ type: 'DEAL' });
-    },
-    [mode],
-  );
 
   // Toast résultat : montré quand la main est finie
   useEffect(() => {
@@ -300,14 +291,14 @@ export default function App() {
 
                 <CasinoBet
                   betMode={betMode}
+                  pendingBet={pendingBet}
                   stack={stack}
                   maxBet={config.maxBet}
                   baseUnit={config.baseUnit}
                   advice={advice}
-                  dealsOnPlace={mode === 'sim'}
-                  showDealButton={mode === 'sim'}
+                  canDeal={mode === 'sim'}
                   onBetMode={(m) => dispatch({ type: 'SET_BET_MODE', betMode: m })}
-                  onBetDeal={onBetDeal}
+                  onPlace={(bet) => dispatch({ type: 'SET_PENDING_BET', bet })}
                   onDeal={() => (animating ? finishReveal() : deal())}
                 />
 

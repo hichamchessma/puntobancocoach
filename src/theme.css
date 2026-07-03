@@ -823,3 +823,55 @@ body {
 .spot-name { font-size: 23px; font-weight: 900; letter-spacing: 3px; }
 .spot-sub { font-size: 12px; font-weight: 600; opacity: 0.85; }
 .bet-tip { text-align: center; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
+
+/* ===== Sélection de jeton ===== */
+.chip-pick.sel { transform: translateY(-6px); }
+.chip-pick.sel .chip {
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,0.16), 0 0 0 3px var(--gold), 0 6px 16px rgba(0,0,0,0.6);
+}
+.rack-hint { margin-left: auto; font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 12px; }
+
+/* ===== Feutre + zones de mise circulaires ===== */
+.bet-felt {
+  display: flex; gap: 40px; justify-content: center; align-items: center; flex-wrap: wrap;
+  padding: 26px; margin: 8px 0 14px; border-radius: 16px;
+  background:
+    radial-gradient(500px 200px at 50% 0%, rgba(255,255,255,0.05), transparent 60%),
+    radial-gradient(760px 320px at 50% 55%, #1f7a5b 0%, var(--felt) 60%, var(--felt-2) 100%);
+  border: 1px solid #0c2a20;
+  box-shadow: inset 0 0 60px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(227,194,100,0.12);
+}
+.bet-zone {
+  position: relative; width: 190px; height: 190px; border-radius: 50%; padding: 0;
+  background: radial-gradient(circle at 50% 35%, rgba(255,255,255,0.06), rgba(0,0,0,0.32));
+  border: 3px solid; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s, filter 0.2s;
+}
+.bet-zone::after {
+  content: ''; position: absolute; inset: 10px; border-radius: 50%;
+  border: 1px dashed rgba(255,255,255,0.22);
+}
+.bet-zone.player { border-color: var(--player); }
+.bet-zone.banker { border-color: var(--banker); }
+.bet-zone:hover { transform: scale(1.04); filter: brightness(1.08); }
+.bet-zone.player:hover { box-shadow: 0 0 36px rgba(74,144,255,0.5); }
+.bet-zone.banker:hover { box-shadow: 0 0 36px rgba(239,74,85,0.5); }
+.bet-zone:active { transform: scale(0.99); }
+.bz-label {
+  position: absolute; top: 28px; left: 0; right: 0; text-align: center;
+  font-weight: 900; letter-spacing: 2px; font-size: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+.bet-zone.player .bz-label { color: #dbe7ff; }
+.bet-zone.banker .bz-label { color: #ffdede; }
+.bz-pay {
+  position: absolute; top: 54px; left: 0; right: 0; text-align: center;
+  font-size: 10px; color: rgba(255,255,255,0.6); letter-spacing: 1px;
+}
+.bz-chips {
+  position: absolute; left: 50%; top: 54%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center;
+}
+.bz-total {
+  position: absolute; bottom: 22px; left: 0; right: 0; text-align: center;
+  font-weight: 900; color: var(--gold); font-size: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+.deal-btn { margin-top: 4px; }
