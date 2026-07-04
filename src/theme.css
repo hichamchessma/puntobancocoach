@@ -294,6 +294,7 @@ body {
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(6, 18px);
+  grid-auto-rows: 18px;
   grid-auto-columns: 18px;
   gap: 2px;
   background:
@@ -304,14 +305,14 @@ body {
   border: 1px solid var(--panel-line);
   border-radius: 10px;
   padding: 6px 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
+  max-height: 220px;
   scroll-behavior: smooth;
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.45);
   max-width: 100%;
 }
-.road-grid::-webkit-scrollbar { height: 8px; }
-.road-grid.bead { grid-auto-columns: 20px; grid-template-rows: repeat(6, 20px); }
+.road-grid::-webkit-scrollbar { height: 8px; width: 8px; }
+.road-grid.bead { grid-auto-columns: 20px; grid-auto-rows: 20px; grid-template-rows: repeat(6, 20px); }
 .dot {
   width: 16px; height: 16px; border-radius: 50%;
   display: grid; place-items: center; font-size: 9px; font-weight: 800;
@@ -328,7 +329,7 @@ body {
 /* derived roads : points pleins rouge / bleu */
 .dot--R { background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker)); box-shadow: 0 0 5px rgba(239, 74, 85, 0.4); }
 .dot--B { background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player)); box-shadow: 0 0 5px rgba(74, 144, 255, 0.4); }
-.road-grid.derived { grid-template-rows: repeat(6, 14px); grid-auto-columns: 14px; }
+.road-grid.derived { grid-template-rows: repeat(6, 14px); grid-auto-rows: 14px; grid-auto-columns: 14px; }
 .road-grid.derived .dot { width: 12px; height: 12px; }
 
 /* Analyse du sabot */

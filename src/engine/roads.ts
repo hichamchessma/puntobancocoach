@@ -15,22 +15,14 @@ const key = (c: number, r: number) => `${c},${r}`;
 
 /**
  * Big Road : chaque colonne est une série du même résultat. Un résultat
- * identique descend dans la colonne ; un changement crée une nouvelle colonne ;
- * le débordement en bas de colonne part vers la droite ("queue du dragon").
- * Les Tie sont comptés sur la dernière cellule placée.
+ * identique DESCEND toujours dans la colonne (jamais de "queue du dragon" :
+ * une série de plus de 6 continue tout droit vers le bas → scroll vertical).
+ * Un changement crée une nouvelle colonne. Les Tie sont comptés sur la dernière
+ * cellule placée.
  */
 export function buildBigRoad(outcomes: Outcome[]): BigRoadCell[] {
   const cells: BigRoadCell[] = [];
-  const occ = new Set<string>();
   let last: BigRoadCell | null = null;
-  let maxCol = -1;
-
-  const place = (cell: BigRoadCell): BigRoadCell => {
-    cells.push(cell);
-    occ.add(key(cell.col, cell.row));
-    if (cell.col > maxCol) maxCol = cell.col;
-    return cell;
-  };
 
   for (const o of outcomes) {
     if (o === 'T') {
@@ -40,24 +32,13 @@ export function buildBigRoad(outcomes: Outcome[]): BigRoadCell[] {
     const side: Side = o;
 
     if (last === null) {
-      last = place({ col: 0, row: 0, outcome: side, ties: 0 });
-      continue;
-    }
-
-    if (side === last.outcome) {
-      // même résultat : on descend, sinon queue du dragon vers la droite
-      let col = last.col;
-      let row = last.row + 1;
-      if (row >= MAX_ROW || occ.has(key(col, row))) {
-        col = last.col + 1;
-        row = last.row;
-        while (occ.has(key(col, row))) col++;
-      }
-      last = place({ col, row, outcome: side, ties: 0 });
+      last = { col: 0, row: 0, outcome: side, ties: 0 };
+    } else if (side === last.outcome) {
+      last = { col: last.col, row: last.row + 1, outcome: side, ties: 0 }; // on descend, toujours
     } else {
-      // changement : nouvelle colonne en haut
-      last = place({ col: maxCol + 1, row: 0, outcome: side, ties: 0 });
+      last = { col: last.col + 1, row: 0, outcome: side, ties: 0 }; // changement : nouvelle colonne
     }
+    cells.push(last);
   }
 
   return cells;

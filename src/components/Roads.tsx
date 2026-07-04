@@ -20,7 +20,10 @@ function useFollowEnd(len: number) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (el) el.scrollLeft = el.scrollWidth;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+      el.scrollTop = el.scrollHeight; // suit aussi le bas d'une longue colonne
+    }
   }, [len]);
   return ref;
 }
