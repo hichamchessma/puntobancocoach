@@ -61,6 +61,10 @@ export default function App() {
   const toastTimerRef = useRef<number | null>(null);
   const shownToastForId = useRef<number | null>(null);
 
+  // Rejeu auto sur égalité (même mise)
+  const tieTimerRef = useRef<number | null>(null);
+  const tieHandledRef = useRef<number | null>(null);
+
   // Auto-distribution en maintenant Espace
   const holdTimerRef = useRef<number | null>(null);
   const autoDealRef = useRef<number | null>(null);
@@ -144,6 +148,24 @@ export default function App() {
     if (toastTimerRef.current != null) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
   }, [settled, lastHand?.id, lastHand?.outcome, lastHand?.natural, lastHand?.bet, config.currency]);
+
+  // Égalité : on montre le résultat puis on relance automatiquement (même mise)
+  useEffect(() => {
+    if (tieTimerRef.current != null) {
+      clearTimeout(tieTimerRef.current);
+      tieTimerRef.current = null;
+    }
+    if (mode !== 'sim' || !settled || !lastHand || lastHand.outcome !== 'T') return;
+    if (tieHandledRef.current === lastHand.id) return;
+    tieHandledRef.current = lastHand.id;
+    const bet = lastHand.bet; // mise du joueur (rendue en cas d'égalité)
+    tieTimerRef.current = window.setTimeout(() => {
+      if (betMode === 'manual' && bet) {
+        dispatch({ type: 'SET_PENDING_BET', bet: { side: bet.side, amount: bet.amount } });
+      }
+      dispatch({ type: 'DEAL' });
+    }, 1300);
+  }, [settled, lastHand?.id, lastHand?.outcome, lastHand?.bet, mode, betMode]);
 
   const stopAutoDeal = useCallback(() => {
     if (holdTimerRef.current != null) {

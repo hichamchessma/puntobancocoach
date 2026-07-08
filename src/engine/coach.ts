@@ -15,7 +15,7 @@ import type { Advice, BetResult, CoachConfig, ProgressionState, Side } from './t
 export const DEFAULT_CONFIG: CoachConfig = {
   baseUnit: 200,
   stack: 25000,
-  maxBet: 2500,
+  maxBet: 40000,
   maxStages: 3, // 3 paliers max puis reset forcé
   multipliers: [1, 2, 3], // progression douce (pas x2 systématique)
   zigzagMinLen: 4, // 4 résultats alternés = "2 tours"
