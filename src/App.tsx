@@ -7,6 +7,8 @@ import { DealSpeedControl, msPerCard, type SpeedMode } from './components/DealSp
 import { HandArea, type Reveal } from './components/HandArea';
 import { HistoryList } from './components/HistoryList';
 import type { ToastData } from './components/ResultToast';
+import { explainDerivedRoad } from './engine/analysis';
+import type { DerivedKey } from './engine/roads';
 import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
 import { SettingsModal } from './components/SettingsModal';
@@ -49,6 +51,9 @@ export default function App() {
   const [view, setView] = useState<View>('play');
   const [showSettings, setShowSettings] = useState(false);
   const [showCoach, setShowCoach] = useState(false);
+  const [helpMsg, setHelpMsg] = useState<{ title: string; body: string; canDeal?: boolean } | null>(
+    null,
+  );
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('progressive');
@@ -235,6 +240,34 @@ export default function App() {
     return () => window.removeEventListener('blur', onBlur);
   }, [stopAutoDeal]);
 
+  // Bouton "Jouer / Help" : place la mise conseillée, ou explique pourquoi attendre
+  const playNow = () => {
+    if (advice.action === 'bet' && advice.side) {
+      if (betMode !== 'manual') dispatch({ type: 'SET_BET_MODE', betMode: 'manual' });
+      dispatch({ type: 'SET_PENDING_BET', bet: { side: advice.side, amount: advice.amount } });
+      setHelpMsg({
+        title: `Je joue : ${advice.side === 'P' ? 'JOUEUR' : 'BANQUIER'} · ${formatMoney(advice.amount, config.currency)}`,
+        body: `${advice.reason}\n\nMise posée sur la table. ${mode === 'sim' ? 'Clique « Distribuer » (ou Espace) pour jouer le coup.' : 'Enregistre maintenant le résultat réel.'}`,
+        canDeal: mode === 'sim',
+      });
+    } else {
+      setHelpMsg({
+        title: advice.action === 'stop' ? 'STOP — on ne joue pas' : 'ON ATTEND',
+        body:
+          advice.reason +
+          (advice.action === 'wait'
+            ? "\n\nNe pas jouer est aussi un bon coup : on garde la bankroll pour un vrai signal."
+            : ''),
+        canDeal: false,
+      });
+    }
+  };
+
+  const explainRoad = (which: DerivedKey) => {
+    const { title, body } = explainDerivedRoad(which, outcomes);
+    setHelpMsg({ title, body, canDeal: false });
+  };
+
   const tabs: { id: View; label: string }[] = [
     { id: 'play', label: '🎴 Jouer' },
     { id: 'backtest', label: '📊 Backtest' },
@@ -350,14 +383,19 @@ export default function App() {
             {/* ===== Colonne latérale ===== */}
             <div className="col">
               <div className="panel">
-                <h2>
-                  Shoe History{' '}
-                  <span className="sub">
-                    · {outcomes.length}
-                    {config.shoeHands > 0 ? `/${config.shoeHands}` : ''} coups
-                  </span>
-                </h2>
-                <Roads outcomes={outcomes} />
+                <div className="panel-head">
+                  <h2 style={{ margin: 0 }}>
+                    Shoe History{' '}
+                    <span className="sub">
+                      · {outcomes.length}
+                      {config.shoeHands > 0 ? `/${config.shoeHands}` : ''} coups
+                    </span>
+                  </h2>
+                  <button className="btn gold" onClick={playNow}>
+                    ▶ Jouer maintenant / Help
+                  </button>
+                </div>
+                <Roads outcomes={outcomes} onExplain={explainRoad} />
               </div>
 
               <div className="panel">
@@ -380,6 +418,32 @@ export default function App() {
               <div className="panel">
                 <h2>Historique des coups</h2>
                 <HistoryList hands={hands} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {helpMsg && (
+          <div className="modal-back" onClick={() => setHelpMsg(null)}>
+            <div className="help-pop" onClick={(e) => e.stopPropagation()}>
+              <div className="help-title">{helpMsg.title}</div>
+              <p className="help-body">{helpMsg.body}</p>
+              <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
+                {helpMsg.canDeal && (
+                  <button
+                    className="btn gold"
+                    onClick={() => {
+                      setHelpMsg(null);
+                      if (animating) finishReveal();
+                      else deal();
+                    }}
+                  >
+                    🂠 Distribuer
+                  </button>
+                )}
+                <button className="btn" onClick={() => setHelpMsg(null)}>
+                  Fermer
+                </button>
               </div>
             </div>
           </div>

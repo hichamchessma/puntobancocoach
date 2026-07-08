@@ -43,10 +43,10 @@ function detectPattern(outcomes: Outcome[]): NamedPattern {
   const streak = trailingStreak(seq);
   const zig = trailingZigzag(seq);
 
-  if (streak >= 4) {
+  if (streak >= 3) {
     return { key: 'dragon', label: `Dragon (${streak})`, cnLabel: '長龍', length: streak };
   }
-  if (zig >= 4) {
+  if (zig >= 3) {
     return { key: 'single-chop', label: `Ping-pong (${zig})`, cnLabel: '單跳', length: zig };
   }
   // double chop : dernières colonnes de longueur 2 (PP BB PP ...)
@@ -89,6 +89,48 @@ export function analyzeShoe(outcomes: Outcome[]): ShoeAnalysis {
   const tips = buildTips(regularity, pattern, follow, known);
 
   return { derived, last, reds, regularity, pattern, follow, tips };
+}
+
+const DERIVED_NAMES: Record<'bigEye' | 'small' | 'cockroach', { title: string; what: string }> = {
+  bigEye: { title: 'Big Eye Boy · 大眼仔', what: 'compare la régularité colonne par colonne (décalage 1)' },
+  small: { title: 'Small Road · 小路', what: 'même logique en sautant 1 colonne (décalage 2)' },
+  cockroach: { title: 'Cockroach · 曱甴路', what: 'même logique en sautant 2 colonnes (décalage 3)' },
+};
+
+/** Explique la derived road courante + la conclusion à prendre. */
+export function explainDerivedRoad(
+  which: 'bigEye' | 'small' | 'cockroach',
+  outcomes: Outcome[],
+): { title: string; body: string } {
+  const meta = DERIVED_NAMES[which];
+  const marks = buildDerivedRoad(outcomes, DERIVED_OFFSETS[which]);
+
+  if (marks.length === 0) {
+    return {
+      title: meta.title,
+      body: `Cette road ${meta.what} pour dire si le sabot est RÉGULIER (rouge) ou CHAOTIQUE (bleu).\n\nPas encore assez de coups : elle démarre après quelques colonnes. ➡️ On observe.`,
+    };
+  }
+
+  const reds = marks.filter((m) => m === 'R').length;
+  const blues = marks.length - reds;
+  const last = marks[marks.length - 1];
+  let streak = 1;
+  for (let i = marks.length - 1; i > 0; i--) {
+    if (marks[i] === marks[i - 1]) streak++;
+    else break;
+  }
+  const lastTxt = last === 'R' ? 'ROUGE (régulier)' : 'BLEU (irrégulier)';
+
+  const body =
+    `Cette road ${meta.what}, pour juger si le sabot est RÉGULIER (rouge = le motif se répète) ` +
+    `ou CHAOTIQUE (bleu = imprévisible).\n\n` +
+    `État actuel : ${reds} rouge · ${blues} bleu — dernière marque = ${lastTxt} (série de ${streak}).\n\n` +
+    (last === 'R'
+      ? `➡️ Conclusion : RÉGULIER ici. La tendance en cours (dragon / ping-pong) a tendance à se confirmer. Tu peux SUIVRE le motif, en mise à plat.`
+      : `➡️ Conclusion : IRRÉGULIER ici. Lecture peu fiable, sabot imprévisible. Prudence : petite mise, ou on ATTEND un signal plus net.`);
+
+  return { title: meta.title, body };
 }
 
 function buildTips(

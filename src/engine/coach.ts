@@ -18,11 +18,11 @@ export const DEFAULT_CONFIG: CoachConfig = {
   maxBet: 40000,
   maxStages: 3, // 3 paliers max puis reset forcé
   multipliers: [1, 2, 3], // progression douce (pas x2 systématique)
-  zigzagMinLen: 4, // 4 résultats alternés = "2 tours"
+  zigzagMinLen: 3, // 3 résultats alternés suffisent
   maxRiskPct: 0.15, // jamais plus de 15% du stack sur une seule mise
   playZigzag: true,
   playDragon: true,
-  dragonMinLen: 4, // 4 mêmes résultats d'affilée = dragon confirmé
+  dragonMinLen: 3, // 3 mêmes résultats d'affilée = dragon confirmé
   currency: 'DH',
   customRules: [],
   shoeHands: 0, // sabot infini par défaut

@@ -34,7 +34,13 @@ function useFollowEnd(len: number) {
   return ref;
 }
 
-export function Roads({ outcomes }: { outcomes: Outcome[] }) {
+export function Roads({
+  outcomes,
+  onExplain,
+}: {
+  outcomes: Outcome[];
+  onExplain?: (which: DerivedKey) => void;
+}) {
   const big = buildBigRoad(outcomes);
   const bead = buildBeadPlate(outcomes);
   const bigCols = Math.max(1, ...big.map((c) => c.col + 1));
@@ -63,7 +69,7 @@ export function Roads({ outcomes }: { outcomes: Outcome[] }) {
 
       <div className="derived-row">
         {(Object.keys(DERIVED_META) as DerivedKey[]).map((k) => (
-          <DerivedRoad key={k} outcomes={outcomes} which={k} />
+          <DerivedRoad key={k} outcomes={outcomes} which={k} onExplain={onExplain} />
         ))}
       </div>
 
@@ -98,7 +104,15 @@ export function Roads({ outcomes }: { outcomes: Outcome[] }) {
   );
 }
 
-function DerivedRoad({ outcomes, which }: { outcomes: Outcome[]; which: DerivedKey }) {
+function DerivedRoad({
+  outcomes,
+  which,
+  onExplain,
+}: {
+  outcomes: Outcome[];
+  which: DerivedKey;
+  onExplain?: (which: DerivedKey) => void;
+}) {
   const cells = placeColors(buildDerivedRoad(outcomes, DERIVED_OFFSETS[which]));
   const cols = Math.max(1, ...cells.map((c) => c.col + 1));
   const meta = DERIVED_META[which];
@@ -108,6 +122,11 @@ function DerivedRoad({ outcomes, which }: { outcomes: Outcome[]; which: DerivedK
     <div className="derived-col road-block">
       <div className="road-label">
         {meta.label} <span className="cn-tag">{meta.cn}</span>
+        {onExplain && (
+          <button className="road-explain" title="Expliquer cette road" onClick={() => onExplain(which)}>
+            ?
+          </button>
+        )}
       </div>
       <div
         className="road-grid derived"

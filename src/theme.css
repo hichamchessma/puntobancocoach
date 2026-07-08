@@ -875,3 +875,25 @@ body {
   font-weight: 900; color: var(--gold); font-size: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
 }
 .deal-btn { margin-top: 2px; padding: 10px 16px; font-size: 14px; }
+
+/* ===== En-tête panneau avec bouton ===== */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.panel-head h2 { margin: 0; }
+
+/* Bouton "?" sur les derived roads */
+.road-explain {
+  margin-left: 6px; width: 18px; height: 18px; border-radius: 50%; padding: 0;
+  background: #16223c; border: 1px solid var(--panel-line); color: var(--gold);
+  font-weight: 900; font-size: 11px; cursor: pointer; line-height: 1;
+}
+.road-explain:hover { background: var(--gold); color: #221900; border-color: var(--gold); }
+
+/* ===== Popup Help / explication ===== */
+.help-pop {
+  width: min(460px, 94vw);
+  background: linear-gradient(180deg, #17233d, #0d1626);
+  border: 1px solid var(--gold); border-radius: 16px; padding: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.help-title { color: var(--gold); font-weight: 900; letter-spacing: 1px; font-size: 17px; margin-bottom: 12px; }
+.help-body { white-space: pre-line; line-height: 1.55; font-size: 14px; color: var(--text); margin: 0 0 16px; }
