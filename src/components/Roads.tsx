@@ -20,10 +20,16 @@ function useFollowEnd(len: number) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (el) {
+    if (!el) return;
+    // suit le dernier résultat : scroll instantané à droite (et en bas si colonne longue)
+    const follow = () => {
       el.scrollLeft = el.scrollWidth;
-      el.scrollTop = el.scrollHeight; // suit aussi le bas d'une longue colonne
-    }
+      el.scrollTop = el.scrollHeight;
+    };
+    follow();
+    // 2e passe après layout, au cas où la largeur vient de changer
+    const id = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(id);
   }, [len]);
   return ref;
 }
