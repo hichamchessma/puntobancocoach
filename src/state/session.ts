@@ -146,13 +146,27 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
 export function reducer(state: SessionState, action: Action): SessionState {
   switch (action.type) {
     case 'DEAL': {
-      let { shoe, shoeIndex } = state;
+      let base = state;
+      // Fin de sabot (mode limité) : on repart sur un nouveau sabot (road remise
+      // à zéro, progression réinitialisée) mais on garde la bankroll.
+      const limit = state.config.shoeHands;
+      if (limit > 0 && state.hands.length >= limit) {
+        base = {
+          ...state,
+          hands: [],
+          progression: { ...INITIAL_PROGRESSION },
+          shoe: createShoe(8),
+          shoeIndex: 0,
+          past: [],
+        };
+      }
+      let { shoe, shoeIndex } = base;
       if (shoeIndex + 6 > shoe.length) {
         shoe = createShoe(8);
         shoeIndex = 0;
       }
       const { result, next } = dealHand(shoe, shoeIndex);
-      const withShoe = { ...state, shoe, shoeIndex: next };
+      const withShoe = { ...base, shoe, shoeIndex: next };
       return applyHand(withShoe, result, true);
     }
 

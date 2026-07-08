@@ -351,7 +351,11 @@ export default function App() {
             <div className="col">
               <div className="panel">
                 <h2>
-                  Shoe History <span className="sub">· {outcomes.length} coups</span>
+                  Shoe History{' '}
+                  <span className="sub">
+                    · {outcomes.length}
+                    {config.shoeHands > 0 ? `/${config.shoeHands}` : ''} coups
+                  </span>
                 </h2>
                 <Roads outcomes={outcomes} />
               </div>

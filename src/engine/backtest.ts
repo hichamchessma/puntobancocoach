@@ -45,6 +45,7 @@ export interface BacktestReport {
 const emptyStrat = (): StratStat => ({ bets: 0, wins: 0, losses: 0, pushes: 0, net: 0 });
 
 export function simulateShoe(config: CoachConfig, maxHands = 200): BacktestReport {
+  const cap = config.shoeHands > 0 ? Math.min(config.shoeHands, maxHands) : maxHands;
   const shoe = createShoe(8);
   let idx = 0;
   let prog = { ...INITIAL_PROGRESSION };
@@ -73,7 +74,7 @@ export function simulateShoe(config: CoachConfig, maxHands = 200): BacktestRepor
   };
   const equity: number[] = [];
 
-  for (let h = 0; h < maxHands && idx + 6 <= shoe.length; h++) {
+  for (let h = 0; h < cap && idx + 6 <= shoe.length; h++) {
     const advice = computeAdvice(outcomes, config, prog);
 
     // distribue la main

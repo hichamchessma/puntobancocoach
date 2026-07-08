@@ -102,6 +102,7 @@ export interface CoachConfig {
   dragonMinLen: number; // longueur de série pour déclencher le dragon (ex. 4)
   currency: import('./money').Currency; // devise d'affichage
   customRules: CustomRule[]; // patterns personnalisés (prioritaires)
+  shoeHands: number; // 0 = sabot infini ; sinon nb de coups avant nouveau sabot
 }
 
 // État vivant de la progression du coach

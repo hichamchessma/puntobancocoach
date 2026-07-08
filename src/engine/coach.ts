@@ -25,6 +25,7 @@ export const DEFAULT_CONFIG: CoachConfig = {
   dragonMinLen: 4, // 4 mêmes résultats d'affilée = dragon confirmé
   currency: 'DH',
   customRules: [],
+  shoeHands: 0, // sabot infini par défaut
 };
 
 export const INITIAL_PROGRESSION: ProgressionState = {

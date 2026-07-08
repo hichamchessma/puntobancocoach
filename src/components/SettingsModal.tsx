@@ -24,6 +24,8 @@ export function SettingsModal({
   const [playZigzag, setPlayZigzag] = useState(config.playZigzag);
   const [playDragon, setPlayDragon] = useState(config.playDragon);
   const [currency, setCurrency] = useState<Currency>(config.currency);
+  const [shoeLimited, setShoeLimited] = useState(config.shoeHands > 0);
+  const [shoeHands, setShoeHands] = useState(config.shoeHands > 0 ? config.shoeHands : 55);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: Number(e.target.value) }));
@@ -109,6 +111,28 @@ export function SettingsModal({
           </div>
         </div>
 
+        <div className="coach-label" style={{ marginBottom: 8 }}>SABOT</div>
+        <div className="stat-row" style={{ marginBottom: 12 }}>
+          <label className="toggle" style={{ color: 'var(--text)' }}>
+            <input type="checkbox" checked={shoeLimited} onChange={() => setShoeLimited((v) => !v)} />
+            Sabot limité (nouveau sabot au bout de N coups)
+          </label>
+          <div className="field">
+            <label>Coups par sabot</label>
+            <input
+              type="number"
+              min={10}
+              max={200}
+              value={shoeHands}
+              disabled={!shoeLimited}
+              onChange={(e) => setShoeHands(Number(e.target.value))}
+            />
+            <div className="hint">
+              {shoeLimited ? `Le sabot redémarre tous les ${shoeHands} coups.` : 'Sabot infini (par défaut).'}
+            </div>
+          </div>
+        </div>
+
         <div className="muted" style={{ marginBottom: 14 }}>
           Progression bornée prévue :{' '}
           <strong style={{ color: 'var(--gold)' }}>
@@ -136,6 +160,7 @@ export function SettingsModal({
                 playZigzag,
                 playDragon,
                 currency,
+                shoeHands: shoeLimited ? Math.max(10, shoeHands) : 0,
               });
               onClose();
             }}
