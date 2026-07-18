@@ -61,6 +61,11 @@ export default function App() {
   const [speedLevel, setSpeedLevel] = useState(6);
   const [revealed, setRevealed] = useState(0);
   const timerRef = useRef<number | null>(null);
+  // refs de vitesse pour la boucle d'auto-distribution (valeurs fraîches)
+  const speedModeRef = useRef(speedMode);
+  const speedLevelRef = useRef(speedLevel);
+  speedModeRef.current = speedMode;
+  speedLevelRef.current = speedLevel;
 
   // Toast résultat
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -179,9 +184,22 @@ export default function App() {
       holdTimerRef.current = null;
     }
     if (autoDealRef.current != null) {
-      clearInterval(autoDealRef.current);
+      clearTimeout(autoDealRef.current);
       autoDealRef.current = null;
     }
+  }, []);
+
+  // Boucle d'auto-distribution tant que Espace est maintenu (cadence = durée
+  // d'animation pour que chaque résultat sorte l'un après l'autre).
+  const runAutoDeal = useCallback(() => {
+    if (!spaceDownRef.current) {
+      autoDealRef.current = null;
+      return;
+    }
+    dispatch({ type: 'DEAL' });
+    const cadence =
+      speedModeRef.current === 'instant' ? 450 : Math.max(500, msPerCard(speedLevelRef.current) * 6 + 200);
+    autoDealRef.current = window.setTimeout(runAutoDeal, cadence);
   }, []);
 
   // Raccourcis clavier (uniquement dans la vue Jouer, en simulateur)
@@ -215,9 +233,8 @@ export default function App() {
       spaceDownRef.current = true;
       if (animating) finishReveal();
       else deal();
-      holdTimerRef.current = window.setTimeout(() => {
-        autoDealRef.current = window.setInterval(() => dispatch({ type: 'DEAL' }), 420);
-      }, 1500);
+      // maintien -> distribution en continu (démarre vite)
+      holdTimerRef.current = window.setTimeout(runAutoDeal, 350);
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code !== 'Space') return;
@@ -230,7 +247,7 @@ export default function App() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [playable, mode, showSettings, showCoach, animating, finishReveal, deal, stopAutoDeal]);
+  }, [playable, mode, showSettings, showCoach, animating, finishReveal, deal, stopAutoDeal, runAutoDeal]);
 
   useEffect(() => {
     const onBlur = () => {
