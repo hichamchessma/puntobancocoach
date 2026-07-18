@@ -197,8 +197,9 @@ export default function App() {
       return;
     }
     dispatch({ type: 'DEAL' });
+    // cadence rapide, pilotée par le curseur de vitesse
     const cadence =
-      speedModeRef.current === 'instant' ? 450 : Math.max(500, msPerCard(speedLevelRef.current) * 6 + 200);
+      speedModeRef.current === 'instant' ? 110 : Math.max(80, msPerCard(speedLevelRef.current));
     autoDealRef.current = window.setTimeout(runAutoDeal, cadence);
   }, []);
 
