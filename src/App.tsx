@@ -57,7 +57,7 @@ export default function App() {
   const [roadLetters, setRoadLetters] = useState(false);
 
   // Vitesse de distribution
-  const [speedMode, setSpeedMode] = useState<SpeedMode>('progressive');
+  const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
   const [speedLevel, setSpeedLevel] = useState(6);
   const [revealed, setRevealed] = useState(0);
   const timerRef = useRef<number | null>(null);
