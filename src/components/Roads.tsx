@@ -64,7 +64,6 @@ export function Roads({
               title={c.outcome === 'P' ? 'Joueur' : 'Banquier'}
             >
               {letters && (c.outcome === 'P' ? 'B' : 'R')}
-              {c.ties > 0 && <span className="tie-slash">/</span>}
             </div>
           ))}
         </div>
