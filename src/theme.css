@@ -317,13 +317,20 @@ body {
   display: grid; place-items: center; font-size: 9px; font-weight: 800;
   align-self: center; justify-self: center;
 }
-.dot--bigP { border: 2px solid var(--player); box-shadow: 0 0 6px rgba(74, 144, 255, 0.35); }
-.dot--bigB { border: 2px solid var(--banker); box-shadow: 0 0 6px rgba(239, 74, 85, 0.35); }
+.dot--bigP {
+  background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player));
+  box-shadow: 0 0 6px rgba(74, 144, 255, 0.4);
+}
+.dot--bigB {
+  background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker));
+  box-shadow: 0 0 6px rgba(239, 74, 85, 0.4);
+}
 .dot.bead-P { background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player)); color: #fff; }
 .dot.bead-B { background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker)); color: #fff; }
 .dot.bead-T { background: radial-gradient(circle at 35% 30%, #6ee9b3, var(--tie)); color: #053; }
 .dot .tie-slash {
-  position: relative; color: var(--tie); font-weight: 900; font-size: 14px;
+  position: relative; color: #eafff5; font-weight: 900; font-size: 14px;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
 }
 /* derived roads : points pleins rouge / bleu */
 .dot--R { background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker)); box-shadow: 0 0 5px rgba(239, 74, 85, 0.4); }
