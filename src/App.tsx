@@ -54,6 +54,7 @@ export default function App() {
   const [helpMsg, setHelpMsg] = useState<{ title: string; body: string; canDeal?: boolean } | null>(
     null,
   );
+  const [roadLetters, setRoadLetters] = useState(false);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('progressive');
@@ -391,11 +392,16 @@ export default function App() {
                       {config.shoeHands > 0 ? `/${config.shoeHands}` : ''} coups
                     </span>
                   </h2>
-                  <button className="btn gold" onClick={playNow}>
-                    ▶ Jouer maintenant / Help
-                  </button>
+                  <div className="btn-row">
+                    <button className="btn" onClick={() => setRoadLetters((v) => !v)}>
+                      {roadLetters ? '● Couleurs' : 'B / R Lettres'}
+                    </button>
+                    <button className="btn gold" onClick={playNow}>
+                      ▶ Jouer maintenant / Help
+                    </button>
+                  </div>
                 </div>
-                <Roads outcomes={outcomes} onExplain={explainRoad} />
+                <Roads outcomes={outcomes} onExplain={explainRoad} letters={roadLetters} />
               </div>
 
               <div className="panel">

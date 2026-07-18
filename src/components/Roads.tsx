@@ -37,9 +37,11 @@ function useFollowEnd(len: number) {
 export function Roads({
   outcomes,
   onExplain,
+  letters = false,
 }: {
   outcomes: Outcome[];
   onExplain?: (which: DerivedKey) => void;
+  letters?: boolean; // affiche B/R au lieu des pastilles couleur (Big Road)
 }) {
   const big = buildBigRoad(outcomes);
   const bead = buildBeadPlate(outcomes);
@@ -57,10 +59,11 @@ export function Roads({
           {big.map((c, i) => (
             <div
               key={i}
-              className={`dot ${c.outcome === 'P' ? 'dot--bigP' : 'dot--bigB'}`}
+              className={`dot ${c.outcome === 'P' ? 'dot--bigP' : 'dot--bigB'} ${letters ? 'as-letter' : ''}`}
               style={{ gridColumn: c.col + 1, gridRow: c.row + 1 }}
               title={c.outcome === 'P' ? 'Joueur' : 'Banquier'}
             >
+              {letters && (c.outcome === 'P' ? 'B' : 'R')}
               {c.ties > 0 && <span className="tie-slash">/</span>}
             </div>
           ))}

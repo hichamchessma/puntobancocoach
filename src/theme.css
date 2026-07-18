@@ -332,6 +332,12 @@ body {
   position: relative; color: #eafff5; font-weight: 900; font-size: 14px;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
 }
+/* Big Road en mode lettres (B/R) */
+.dot.as-letter {
+  background: transparent; box-shadow: none; font-size: 13px; font-weight: 900;
+}
+.dot--bigP.as-letter { color: var(--player); }
+.dot--bigB.as-letter { color: var(--banker); }
 /* derived roads : points pleins rouge / bleu */
 .dot--R { background: radial-gradient(circle at 35% 30%, #ff8088, var(--banker)); box-shadow: 0 0 5px rgba(239, 74, 85, 0.4); }
 .dot--B { background: radial-gradient(circle at 35% 30%, #7db0ff, var(--player)); box-shadow: 0 0 5px rgba(74, 144, 255, 0.4); }
