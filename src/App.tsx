@@ -411,14 +411,33 @@ export default function App() {
                     </span>
                   </h2>
                   <div className="btn-row">
+                    <button
+                      className="btn"
+                      onClick={() =>
+                        dispatch({ type: 'SET_CONFIG', patch: { shoeHands: config.shoeHands > 0 ? 0 : 55 } })
+                      }
+                      title="Basculer sabot infini / limité à 55 coups"
+                    >
+                      {config.shoeHands > 0 ? `Sabot : ${config.shoeHands}` : 'Sabot : ∞'}
+                    </button>
                     <button className="btn" onClick={() => setRoadLetters((v) => !v)}>
                       {roadLetters ? '● Couleurs' : 'B / R Lettres'}
                     </button>
                     <button className="btn gold" onClick={playNow}>
-                      ▶ Jouer maintenant / Help
+                      ▶ Jouer / Help
                     </button>
                   </div>
                 </div>
+                {config.shoeHands > 0 &&
+                  config.shoeHands - outcomes.length <= 3 &&
+                  (config.shoeHands - outcomes.length > 0 ? (
+                    <div className="shoe-warn">
+                      ⚠ Fin du sabot dans {config.shoeHands - outcomes.length} coup
+                      {config.shoeHands - outcomes.length > 1 ? 's' : ''}
+                    </div>
+                  ) : (
+                    <div className="shoe-warn end">🔄 Sabot terminé — le prochain coup lance un nouveau sabot</div>
+                  ))}
                 <Roads outcomes={outcomes} onExplain={explainRoad} letters={roadLetters} />
               </div>
 

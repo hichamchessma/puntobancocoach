@@ -910,3 +910,11 @@ body {
 }
 .help-title { color: var(--gold); font-weight: 900; letter-spacing: 1px; font-size: 17px; margin-bottom: 12px; }
 .help-body { white-space: pre-line; line-height: 1.55; font-size: 14px; color: var(--text); margin: 0 0 16px; }
+
+/* ===== Avertissement fin de sabot ===== */
+.shoe-warn {
+  margin: 4px 0 10px; padding: 8px 12px; border-radius: 10px; font-weight: 800; font-size: 13px;
+  color: #ffe6a6; background: linear-gradient(180deg, #2a2410, #1f1c0c);
+  border: 1px solid #6b5a1f; text-align: center; letter-spacing: 0.5px;
+}
+.shoe-warn.end { color: #b9ffe1; background: linear-gradient(180deg, #143a2c, #0d2a20); border-color: #1f6b3f; }
