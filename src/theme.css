@@ -918,3 +918,11 @@ body {
   border: 1px solid #6b5a1f; text-align: center; letter-spacing: 0.5px;
 }
 .shoe-warn.end { color: #b9ffe1; background: linear-gradient(180deg, #143a2c, #0d2a20); border-color: #1f6b3f; }
+
+/* ===== Toggle Auto-bet ===== */
+.auto-toggle { color: var(--text) !important; font-weight: 700; margin-right: 4px; }
+.auto-toggle input { accent-color: var(--gold); }
+.bet-tip.auto-tip {
+  background: linear-gradient(180deg, #2a2410, #1f1c0c); border: 1px solid #6b5a1f;
+  color: #ffe6a6; border-radius: 10px; padding: 10px 14px; margin-top: 2px; font-size: 13px;
+}

@@ -7,6 +7,7 @@ import { DealSpeedControl, msPerCard, type SpeedMode } from './components/DealSp
 import { HandArea, type Reveal } from './components/HandArea';
 import { HistoryList } from './components/HistoryList';
 import type { ToastData } from './components/ResultToast';
+import type { Side } from './engine/types';
 import { explainDerivedRoad } from './engine/analysis';
 import type { DerivedKey } from './engine/roads';
 import { Roads } from './components/Roads';
@@ -287,6 +288,12 @@ export default function App() {
     setHelpMsg({ title, body, canDeal: false });
   };
 
+  // Auto-bet : clic sur un côté = mise + distribution immédiate
+  const onBetDeal = (side: Side, amount: number) => {
+    dispatch({ type: 'SET_PENDING_BET', bet: amount > 0 ? { side, amount } : null });
+    if (mode === 'sim') dispatch({ type: 'DEAL' });
+  };
+
   const tabs: { id: View; label: string }[] = [
     { id: 'play', label: '🎴 Jouer' },
     { id: 'backtest', label: '📊 Backtest' },
@@ -379,6 +386,7 @@ export default function App() {
                   canDeal={mode === 'sim'}
                   onBetMode={(m) => dispatch({ type: 'SET_BET_MODE', betMode: m })}
                   onPlace={(bet) => dispatch({ type: 'SET_PENDING_BET', bet })}
+                  onBetDeal={onBetDeal}
                   onDeal={() => (animating ? finishReveal() : deal())}
                 />
 

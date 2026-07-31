@@ -27,6 +27,7 @@ export function CasinoBet({
   canDeal,
   onBetMode,
   onPlace,
+  onBetDeal,
   onDeal,
 }: {
   betMode: BetMode;
@@ -38,15 +39,22 @@ export function CasinoBet({
   canDeal: boolean; // simulateur : on peut distribuer (Espace / bouton)
   onBetMode: (m: BetMode) => void;
   onPlace: (bet: PendingBet | null) => void;
+  onBetDeal: (side: Side, amount: number) => void; // mise + distribution immédiate
   onDeal: () => void;
 }) {
   const money = useMoney();
   const denoms = [baseUnit, baseUnit * 2, baseUnit * 4, baseUnit * 10];
   const [chip, setChip] = useState(denoms[0]);
+  const [auto, setAuto] = useState(false);
   const cap = Math.max(0, Math.min(maxBet, stack));
 
   const zoneAmount = (side: Side) => (pendingBet?.side === side ? pendingBet.amount : 0);
   const placeOn = (side: Side) => {
+    if (auto) {
+      // clic = mise du jeton sélectionné + distribution immédiate
+      onBetDeal(side, Math.min(chip, cap));
+      return;
+    }
     const cur = zoneAmount(side);
     const amount = Math.min(cur + chip, cap);
     if (amount > 0) onPlace({ side, amount });
@@ -97,10 +105,14 @@ export function CasinoBet({
               </button>
             ))}
             <div className="rack-hint">
-              Jeton sélectionné : <strong style={{ color: 'var(--gold)' }}>{money(chip)}</strong>
-              {pendingBet && (
+              <label className="toggle auto-toggle" title="Clic sur un côté = mise + distribution immédiate">
+                <input type="checkbox" checked={auto} onChange={() => setAuto((v) => !v)} />
+                ⚡ Auto
+              </label>
+              Jeton : <strong style={{ color: 'var(--gold)' }}>{money(chip)}</strong>
+              {pendingBet && !auto && (
                 <button className="link-btn" onClick={() => onPlace(null)}>
-                  retirer la mise <span className="kbd">A</span>
+                  retirer <span className="kbd">A</span>
                 </button>
               )}
             </div>
@@ -114,9 +126,15 @@ export function CasinoBet({
 
           {/* 3) Distribuer */}
           {canDeal ? (
-            <button className="btn gold big deal-btn" onClick={onDeal}>
-              🂠 DISTRIBUER <span className="kbd">Espace</span>
-            </button>
+            auto ? (
+              <div className="bet-tip auto-tip">
+                ⚡ <strong>Auto activé</strong> : clique JOUEUR ou BANQUIER → mise {money(chip)} + distribution directe.
+              </div>
+            ) : (
+              <button className="btn gold big deal-btn" onClick={onDeal}>
+                🂠 DISTRIBUER <span className="kbd">Espace</span>
+              </button>
+            )
           ) : (
             <div className="bet-tip">Pose ta mise, puis enregistre le résultat réel ci-dessous.</div>
           )}
