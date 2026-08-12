@@ -14,6 +14,7 @@ import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
 import { SettingsModal } from './components/SettingsModal';
 import { ShoeAnalysisPanel } from './components/ShoeAnalysisPanel';
+import { SimulationView } from './components/SimulationView';
 import { StrategiesView } from './components/StrategiesView';
 import { formatMoney } from './engine/money';
 import type { Hand } from './engine/types';
@@ -26,7 +27,7 @@ import {
   selectOutcomes,
 } from './state/session';
 
-type View = 'play' | 'backtest' | 'strategies';
+type View = 'play' | 'backtest' | 'strategies' | 'simulation';
 
 /** Ordre de sortie des cartes au casino : Joueur, Banquier, Joueur, Banquier, puis 3es cartes. */
 function dealSlots(hand?: Hand): ('P' | 'B')[] {
@@ -299,6 +300,7 @@ export default function App() {
     { id: 'play', label: '🎴 Jouer' },
     { id: 'backtest', label: '📊 Backtest' },
     { id: 'strategies', label: '🎯 Stratégies' },
+    { id: 'simulation', label: '🧪 Simulation' },
   ];
 
   return (
@@ -328,6 +330,8 @@ export default function App() {
           <StrategiesView config={config} onSave={(patch) => dispatch({ type: 'SET_CONFIG', patch })} />
         ) : view === 'backtest' ? (
           <BacktestView config={config} />
+        ) : view === 'simulation' ? (
+          <SimulationView config={config} />
         ) : (
           <div className="grid">
             {/* ===== Colonne principale ===== */}
