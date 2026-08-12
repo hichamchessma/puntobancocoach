@@ -12,7 +12,8 @@ const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 export function SimulationView({ config }: { config: CoachConfig }) {
   const fmt = useMoney();
-  const [unit, setUnit] = useState(config.baseUnit);
+  const b = config.baseUnit;
+  const [stakes, setStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
   const [hands, setHands] = useState(1000);
   const [bankroll, setBankroll] = useState(config.stack);
   const [shoeLimited, setShoeLimited] = useState(true);
@@ -22,8 +23,11 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const [single, setSingle] = useState<HichamReport | null>(null);
   const [multi, setMulti] = useState<HichamReport[] | null>(null);
 
+  const setStake = (i: number, v: number) =>
+    setStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
+
   const opts: HichamOpts = {
-    unit: Math.max(1, unit),
+    stakes: stakes.map((s) => Math.max(0, s)),
     hands: Math.max(1, hands),
     bankroll: Math.max(1, bankroll),
     shoeHands: shoeLimited ? Math.max(10, shoeHands) : 0,
@@ -46,19 +50,23 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           Simulation <span className="sub">· stratégie « hichamostratforbanker »</span>
         </h2>
         <p className="coach-text" style={{ marginTop: 0 }}>
-          Simule TA stratégie (signal = nouvelle répétition, Banquier en 1‑2‑4‑8 avec pause après
-          l'étape 2). Choisis l'unité, le nombre de coups et la bankroll, puis regarde le bilan en{' '}
-          {fmt(0).replace(/[\d\s.,]/g, '').trim() || 'devise'}.
+          Simule TA stratégie (signal = nouvelle répétition, Banquier en 4 étapes avec pause après
+          l'étape 2). Choisis <strong>la mise de chaque étape</strong>, le nombre de coups et la
+          bankroll, puis regarde le bilan.
         </p>
 
-        <div className="stat-row">
-          <div className="field">
-            <label>Unité de mise (1 unité)</label>
-            <input type="number" min={10} step={10} value={unit} onChange={(e) => setUnit(Number(e.target.value))} />
-            <div className="hint">
-              Échelle : {fmt(unit)} → {fmt(unit * 2)} → {fmt(unit * 4)} → {fmt(unit * 8)}
+        <div className="coach-label" style={{ marginBottom: 8 }}>MISE PAR ÉTAPE (Banquier)</div>
+        <div className="stakes-row">
+          {stakes.map((s, i) => (
+            <div key={i} className="stake-field">
+              <span className={`stake-idx st${i + 1}`}>Étape {i + 1}</span>
+              <input type="number" min={0} step={10} value={s} onChange={(e) => setStake(i, Number(e.target.value))} />
             </div>
-          </div>
+          ))}
+          <div className="stake-total-note">Total si les 4 perdent : <strong>{fmt(stakes.reduce((a, x) => a + x, 0))}</strong></div>
+        </div>
+
+        <div className="stat-row" style={{ marginTop: 12 }}>
           <div className="field">
             <label>Bankroll de départ</label>
             <input type="number" min={100} step={100} value={bankroll} onChange={(e) => setBankroll(Number(e.target.value))} />
@@ -102,7 +110,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           </button>
         </div>
 
-        {single && <SingleReport r={single} fmt={fmt} unit={opts.unit} />}
+        {single && <SingleReport r={single} fmt={fmt} unit={opts.stakes[0] || 1} />}
         {multi && <MultiReport reports={multi} fmt={fmt} />}
         {!single && !multi && (
           <div className="empty-note">Règle les paramètres et lance la simulation.</div>

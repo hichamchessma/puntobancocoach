@@ -13,7 +13,7 @@ import { betPayout } from './coach';
 import type { Side } from './types';
 
 export interface HichamOpts {
-  unit: number; // 1 unité (ex. 200 DH)
+  stakes: number[]; // montant de mise par étape [é1, é2, é3, é4]
   hands: number; // nb de coups à simuler
   bankroll: number; // stack de départ
   shoeHands: number; // coups par sabot (0 = infini)
@@ -40,8 +40,6 @@ export interface HichamReport {
   bustedAtHand: number | null;
   equity: number[];
 }
-
-const MULT = [1, 2, 4, 8];
 
 export function simulateHichamStrat(opts: HichamOpts): HichamReport {
   let shoe = createShoe(8);
@@ -112,7 +110,7 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
     if (state === 'R1' || state === 'R2' || state === 'R3' || state === 'R4') {
       resolved = true;
       const stage = stageOf[state];
-      const amount = opts.unit * MULT[stage - 1];
+      const amount = opts.stakes[stage - 1] ?? 0;
       const win = o === 'B';
       const payout = betPayout('B', amount, win ? 'win' : 'lose', result.bankerValue);
       stack += payout;
