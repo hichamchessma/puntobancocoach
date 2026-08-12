@@ -20,17 +20,27 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const [shoeHands, setShoeHands] = useState(55);
   const [runs, setRuns] = useState(1);
 
+  // Vengeance
+  const [vengeance, setVengeance] = useState(false);
+  const [venStakes, setVenStakes] = useState<number[]>([b * 5, b * 10, b * 20, b * 40]);
+  const [venTimes, setVenTimes] = useState(3);
+
   const [single, setSingle] = useState<HichamReport | null>(null);
   const [multi, setMulti] = useState<HichamReport[] | null>(null);
 
   const setStake = (i: number, v: number) =>
     setStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
+  const setVenStake = (i: number, v: number) =>
+    setVenStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
 
   const opts: HichamOpts = {
     stakes: stakes.map((s) => Math.max(0, s)),
     hands: Math.max(1, hands),
     bankroll: Math.max(1, bankroll),
     shoeHands: shoeLimited ? Math.max(10, shoeHands) : 0,
+    vengeance,
+    vengeanceStakes: venStakes.map((s) => Math.max(0, s)),
+    vengeanceTimes: Math.max(1, venTimes),
   };
 
   const run = () => {
@@ -64,6 +74,32 @@ export function SimulationView({ config }: { config: CoachConfig }) {
             </div>
           ))}
           <div className="stake-total-note">Total si les 4 perdent : <strong>{fmt(stakes.reduce((a, x) => a + x, 0))}</strong></div>
+        </div>
+
+        {/* Vengeance */}
+        <div className={`venge-box ${vengeance ? 'on' : ''}`}>
+          <div className="venge-head">
+            <label className="toggle" style={{ color: 'var(--text)' }}>
+              <input type="checkbox" checked={vengeance} onChange={() => setVengeance((v) => !v)} />
+              🔥 <strong>Vengeance</strong> — après une perte étape 4
+            </label>
+            <div className="field inline" style={{ marginLeft: 'auto' }}>
+              <label>Active pendant (cycles)</label>
+              <input type="number" min={1} max={20} value={venTimes} disabled={!vengeance} onChange={(e) => setVenTimes(Number(e.target.value))} />
+            </div>
+          </div>
+          <div className="stakes-row" style={{ opacity: vengeance ? 1 : 0.45 }}>
+            {venStakes.map((s, i) => (
+              <div key={i} className="stake-field">
+                <span className={`stake-idx venge st${i + 1}`}>Vengeance {i + 1}</span>
+                <input type="number" min={0} step={10} value={s} disabled={!vengeance} onChange={(e) => setVenStake(i, Number(e.target.value))} />
+              </div>
+            ))}
+            <div className="stake-total-note">
+              Après une perte étape 4, on mise ces montants pendant <strong>{venTimes}</strong> cycle
+              {venTimes > 1 ? 's' : ''}, puis retour à la normale.
+            </div>
+          </div>
         </div>
 
         <div className="stat-row" style={{ marginTop: 12 }}>
@@ -144,6 +180,7 @@ function SingleReport({ r, fmt, unit }: { r: HichamReport; fmt: (n: number) => s
         <Metric k="🟢 Victoires étape 4" v={`${r.winsByStage[3]}`} />
         <Metric k="🩸 Pertes étape 4" v={`${r.busts}`} cls={r.busts ? 'neg' : ''} accent />
         <Metric k="Égalités (push)" v={`${r.pushes}`} />
+        {r.vengeanceCycles > 0 && <Metric k="🔥 Cycles vengeance" v={`${r.vengeanceCycles}`} />}
       </div>
 
       {r.busted && (

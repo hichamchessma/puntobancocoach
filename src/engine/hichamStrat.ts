@@ -17,6 +17,9 @@ export interface HichamOpts {
   hands: number; // nb de coups à simuler
   bankroll: number; // stack de départ
   shoeHands: number; // coups par sabot (0 = infini)
+  vengeance?: boolean; // après une perte étape 4, on passe en mode vengeance
+  vengeanceStakes?: number[]; // mises de vengeance par étape [é1, é2, é3, é4]
+  vengeanceTimes?: number; // nb de cycles (progressions) où la vengeance reste active
 }
 
 export interface HichamReport {
@@ -39,6 +42,7 @@ export interface HichamReport {
   busted: boolean;
   bustedAtHand: number | null;
   equity: number[];
+  vengeanceCycles: number; // nb de progressions jouées en mode vengeance
 }
 
 export function simulateHichamStrat(opts: HichamOpts): HichamReport {
@@ -69,6 +73,25 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
   const equity: number[] = [];
   let busted = false;
   let bustedAtHand: number | null = null;
+
+  // Vengeance : après une perte étape 4, on utilise les mises de vengeance pour
+  // les `vengeanceTimes` prochains cycles (progressions), puis retour à la normale.
+  const venOn = !!opts.vengeance && !!opts.vengeanceStakes && (opts.vengeanceTimes ?? 0) > 0;
+  const venStakes = opts.vengeanceStakes ?? opts.stakes;
+  const venTimes = opts.vengeanceTimes ?? 0;
+  let vengeanceLeft = 0;
+  let cycleStakes = opts.stakes; // mises du cycle courant
+  let cycleIsVengeance = false;
+  let vengeanceCycles = 0;
+
+  const endCycle = (win: boolean) => {
+    if (!venOn) return;
+    if (win) {
+      if (vengeanceLeft > 0) vengeanceLeft--;
+    } else {
+      vengeanceLeft = venTimes; // une perte étape 4 (re)lance la vengeance à fond
+    }
+  };
 
   const newShoe = () => {
     shoe = createShoe(8);
@@ -110,7 +133,7 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
     if (state === 'R1' || state === 'R2' || state === 'R3' || state === 'R4') {
       resolved = true;
       const stage = stageOf[state];
-      const amount = opts.stakes[stage - 1] ?? 0;
+      const amount = cycleStakes[stage - 1] ?? 0;
       const win = o === 'B';
       const payout = betPayout('B', amount, win ? 'win' : 'lose', result.bankerValue);
       stack += payout;
@@ -121,6 +144,7 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
         wins++;
         winsByStage[stage - 1]++;
         state = 'WATCH_1';
+        endCycle(true);
       } else {
         losses++;
         if (state === 'R1') state = 'R2';
@@ -129,13 +153,24 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
         else {
           busts++;
           state = 'WATCH_1';
+          endCycle(false);
         }
       }
     }
 
     if (!resolved && (state === 'WATCH_1' || state === 'WATCH_3')) {
       const sig = i >= 1 && seq[i] === seq[i - 1] && (i === 1 || seq[i - 2] !== seq[i - 1]);
-      if (sig) state = state === 'WATCH_1' ? 'R1' : 'R3';
+      if (sig) {
+        if (state === 'WATCH_1') {
+          // début d'un nouveau cycle : on fige les mises (vengeance ou normales)
+          cycleIsVengeance = venOn && vengeanceLeft > 0;
+          cycleStakes = cycleIsVengeance ? venStakes : opts.stakes;
+          if (cycleIsVengeance) vengeanceCycles++;
+          state = 'R1';
+        } else {
+          state = 'R3'; // suite du cycle (après la pause) : mêmes mises
+        }
+      }
     }
 
     maxStack = Math.max(maxStack, stack);
@@ -169,6 +204,7 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
     busted,
     bustedAtHand,
     equity,
+    vengeanceCycles,
   };
 }
 
