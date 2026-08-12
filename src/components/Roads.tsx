@@ -8,6 +8,7 @@ import {
   type DerivedKey,
 } from '../engine/roads';
 import type { Outcome } from '../engine/types';
+import { computeStrategyMarks } from '../engine/strategy';
 
 const DERIVED_META: Record<DerivedKey, { label: string; cn: string }> = {
   bigEye: { label: 'Big Eye Boy', cn: '大眼仔' },
@@ -38,12 +39,15 @@ export function Roads({
   outcomes,
   onExplain,
   letters = false,
+  strategy = false,
 }: {
   outcomes: Outcome[];
   onExplain?: (which: DerivedKey) => void;
   letters?: boolean; // affiche B/R au lieu des pastilles couleur (Big Road)
+  strategy?: boolean; // surligne les victoires (vert) et la perte étape 4 (noir)
 }) {
   const big = buildBigRoad(outcomes);
+  const marks = strategy ? computeStrategyMarks(outcomes) : null;
   const bead = buildBeadPlate(outcomes);
   const bigCols = Math.max(1, ...big.map((c) => c.col + 1));
   const beadCols = Math.max(1, ...bead.map((c) => c.col + 1));
@@ -56,16 +60,27 @@ export function Roads({
       <div className="road-block">
         <div className="road-label">BIG ROAD · 大路</div>
         <div className="road-grid" ref={bigRef} style={{ gridTemplateColumns: `repeat(${bigCols}, 18px)` }}>
-          {big.map((c, i) => (
-            <div
-              key={i}
-              className={`dot ${c.outcome === 'P' ? 'dot--bigP' : 'dot--bigB'} ${letters ? 'as-letter' : ''}`}
-              style={{ gridColumn: c.col + 1, gridRow: c.row + 1 }}
-              title={c.outcome === 'P' ? 'Joueur' : 'Banquier'}
-            >
-              {letters && (c.outcome === 'P' ? 'B' : 'R')}
-            </div>
-          ))}
+          {big.map((c, i) => {
+            const m = marks?.get(i);
+            const markCls = m ? (m.kind === 'win' ? 'mark-win' : 'mark-loss4') : '';
+            const t = m
+              ? m.kind === 'win'
+                ? `Victoire — étape ${m.stage}`
+                : 'Perte étape 4 (4 Banquier perdus)'
+              : c.outcome === 'P'
+                ? 'Joueur'
+                : 'Banquier';
+            return (
+              <div
+                key={i}
+                className={`dot ${c.outcome === 'P' ? 'dot--bigP' : 'dot--bigB'} ${letters ? 'as-letter' : ''} ${markCls}`}
+                style={{ gridColumn: c.col + 1, gridRow: c.row + 1 }}
+                title={t}
+              >
+                {letters && (c.outcome === 'P' ? 'B' : 'R')}
+              </div>
+            );
+          })}
         </div>
       </div>
 

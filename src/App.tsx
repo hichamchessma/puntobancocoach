@@ -56,6 +56,7 @@ export default function App() {
     null,
   );
   const [roadLetters, setRoadLetters] = useState(false);
+  const [showStrat, setShowStrat] = useState(true);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
@@ -431,6 +432,13 @@ export default function App() {
                     <button className="btn" onClick={() => setRoadLetters((v) => !v)}>
                       {roadLetters ? '● Couleurs' : 'B / R Lettres'}
                     </button>
+                    <button
+                      className={`btn ${showStrat ? 'strat-on' : ''}`}
+                      onClick={() => setShowStrat((v) => !v)}
+                      title="Surligner mes victoires (vert) et la perte étape 4 (noir)"
+                    >
+                      🎯 Ma strat
+                    </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help
                     </button>
@@ -446,7 +454,7 @@ export default function App() {
                   ) : (
                     <div className="shoe-warn end">🔄 Sabot terminé — le prochain coup lance un nouveau sabot</div>
                   ))}
-                <Roads outcomes={outcomes} onExplain={explainRoad} letters={roadLetters} />
+                <Roads outcomes={outcomes} onExplain={explainRoad} letters={roadLetters} strategy={showStrat} />
               </div>
 
               <div className="panel">
