@@ -18,7 +18,8 @@
 import { withoutTies } from './patterns';
 import type { Outcome } from './types';
 
-export type StratMark = { kind: 'win' | 'loss4'; stage: number };
+// win = vert · loss = orange (étapes 1/2/3) · loss4 = noir (perte finale des 4)
+export type StratMark = { kind: 'win' | 'loss' | 'loss4'; stage: number };
 
 export function computeStrategyMarks(outcomes: Outcome[]): Map<number, StratMark> {
   const seq = withoutTies(outcomes); // 'P' (bleu/Joueur) | 'B' (rouge/Banquier)
@@ -29,8 +30,10 @@ export function computeStrategyMarks(outcomes: Outcome[]): Map<number, StratMark
   const stageOf: Record<'R1' | 'R2' | 'R3' | 'R4', number> = { R1: 1, R2: 2, R3: 3, R4: 4 };
 
   const isBanker = (i: number) => seq[i] === 'B'; // rouge = gagne
-  // nouvelle répétition (2 mêmes après un changement) — on exclut la 1re colonne
-  const signalAt = (i: number) => i >= 2 && seq[i] === seq[i - 1] && seq[i - 2] !== seq[i - 1];
+  // nouvelle répétition : 2 mêmes couleurs, la 2e après un changement (la 1re
+  // colonne du sabot compte aussi = un run de 2 dès le début).
+  const signalAt = (i: number) =>
+    i >= 1 && seq[i] === seq[i - 1] && (i === 1 || seq[i - 2] !== seq[i - 1]);
 
   for (let i = 0; i < seq.length; i++) {
     let resolved = false;
@@ -43,10 +46,13 @@ export function computeStrategyMarks(outcomes: Outcome[]): Map<number, StratMark
         marks.set(i, { kind: 'win', stage });
         state = 'WATCH_1';
       } else if (state === 'R1') {
+        marks.set(i, { kind: 'loss', stage: 1 });
         state = 'R2'; // double immédiat
       } else if (state === 'R2') {
+        marks.set(i, { kind: 'loss', stage: 2 });
         state = 'WATCH_3'; // 2 bleus = zone de perte, on attend un nouveau signal
       } else if (state === 'R3') {
+        marks.set(i, { kind: 'loss', stage: 3 });
         state = 'R4'; // double immédiat
       } else {
         marks.set(i, { kind: 'loss4', stage: 4 }); // perte des 4 Banquier

@@ -62,11 +62,19 @@ export function Roads({
         <div className="road-grid" ref={bigRef} style={{ gridTemplateColumns: `repeat(${bigCols}, 18px)` }}>
           {big.map((c, i) => {
             const m = marks?.get(i);
-            const markCls = m ? (m.kind === 'win' ? 'mark-win' : 'mark-loss4') : '';
+            const markCls = m
+              ? m.kind === 'win'
+                ? 'mark-win'
+                : m.kind === 'loss4'
+                  ? 'mark-loss4'
+                  : 'mark-loss'
+              : '';
             const t = m
               ? m.kind === 'win'
                 ? `Victoire — étape ${m.stage}`
-                : 'Perte étape 4 (4 Banquier perdus)'
+                : m.kind === 'loss4'
+                  ? 'Perte étape 4 (4 Banquier perdus) — STOP'
+                  : `Perte étape ${m.stage}`
               : c.outcome === 'P'
                 ? 'Joueur'
                 : 'Banquier';
