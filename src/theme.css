@@ -933,8 +933,8 @@ body {
   position: relative; z-index: 3;
 }
 .dot.mark-loss4 {
-  box-shadow: 0 0 0 2.5px #05070c, 0 0 9px 1px rgba(0, 0, 0, 0.95);
-  position: relative; z-index: 3;
+  box-shadow: 0 0 0 3px #d10018, 0 0 16px 4px rgba(209, 0, 24, 0.95);
+  position: relative; z-index: 4;
 }
 .btn.strat-on { border-color: var(--tie); color: #b9ffe1; box-shadow: 0 0 0 1px rgba(41,207,134,0.4); }
 .dot.mark-loss {
