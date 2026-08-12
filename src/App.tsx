@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { AdvicePanel } from './components/AdvicePanel';
+import { AutoStratModal } from './components/AutoStratModal';
 import { BacktestView } from './components/BacktestView';
 import { CasinoBet } from './components/CasinoBet';
 import { CoachOverlay } from './components/CoachOverlay';
@@ -10,6 +11,7 @@ import type { ToastData } from './components/ResultToast';
 import type { Side } from './engine/types';
 import { explainDerivedRoad } from './engine/analysis';
 import type { DerivedKey } from './engine/roads';
+import { nextStrategyBet } from './engine/strategy';
 import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
 import { SettingsModal } from './components/SettingsModal';
@@ -58,6 +60,7 @@ export default function App() {
   );
   const [roadLetters, setRoadLetters] = useState(false);
   const [showStrat, setShowStrat] = useState(true);
+  const [showStratSetup, setShowStratSetup] = useState(false);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
@@ -87,7 +90,8 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, pendingBet, config, stack, startStack, hands } = state;
+  const { mode, betMode, pendingBet, autoStrat, config, stack, startStack, hands } = state;
+  const stratBet = autoStrat ? nextStrategyBet(outcomes, autoStrat) : null;
 
   const order = dealSlots(lastHand);
   const total = order.length;
@@ -381,19 +385,51 @@ export default function App() {
                   </button>
                 </div>
 
-                <CasinoBet
-                  betMode={betMode}
-                  pendingBet={pendingBet}
-                  stack={stack}
-                  maxBet={config.maxBet}
-                  baseUnit={config.baseUnit}
-                  advice={advice}
-                  canDeal={mode === 'sim'}
-                  onBetMode={(m) => dispatch({ type: 'SET_BET_MODE', betMode: m })}
-                  onPlace={(bet) => dispatch({ type: 'SET_PENDING_BET', bet })}
-                  onBetDeal={onBetDeal}
-                  onDeal={() => (animating ? finishReveal() : deal())}
-                />
+                {autoStrat ? (
+                  <div className="auto-strat-panel">
+                    <div className="asp-head">
+                      <span className="asp-title">🤖 AUTO-STRATÉGIE ACTIVE</span>
+                      <div className="btn-row">
+                        <button className="btn" onClick={() => setShowStratSetup(true)}>⚙ Régler</button>
+                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_STRAT', cfg: null })}>
+                          ⏹ Désactiver
+                        </button>
+                      </div>
+                    </div>
+                    <div className="asp-bet">
+                      {stratBet ? (
+                        <>
+                          <span className="asp-chip">🔴 BANQUIER</span>
+                          <span className="asp-amount">{formatMoney(stratBet.amount, config.currency)}</span>
+                          <span className="asp-stage">étape {stratBet.stage}</span>
+                        </>
+                      ) : (
+                        <span className="asp-wait">⏳ Pas de signal — aucune mise ce coup</span>
+                      )}
+                    </div>
+                    {mode === 'sim' ? (
+                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
+                        🂠 DISTRIBUER <span className="kbd">Espace</span>
+                      </button>
+                    ) : (
+                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
+                    )}
+                  </div>
+                ) : (
+                  <CasinoBet
+                    betMode={betMode}
+                    pendingBet={pendingBet}
+                    stack={stack}
+                    maxBet={config.maxBet}
+                    baseUnit={config.baseUnit}
+                    advice={advice}
+                    canDeal={mode === 'sim'}
+                    onBetMode={(m) => dispatch({ type: 'SET_BET_MODE', betMode: m })}
+                    onPlace={(bet) => dispatch({ type: 'SET_PENDING_BET', bet })}
+                    onBetDeal={onBetDeal}
+                    onDeal={() => (animating ? finishReveal() : deal())}
+                  />
+                )}
 
                 {mode === 'sim' && (
                   <div className="controls" style={{ marginTop: 12 }}>
@@ -442,6 +478,13 @@ export default function App() {
                       title="Surligner mes victoires (vert) et la perte étape 4 (noir)"
                     >
                       🎯 Ma strat
+                    </button>
+                    <button
+                      className={`btn ${autoStrat ? 'strat-on' : ''}`}
+                      onClick={() => setShowStratSetup(true)}
+                      title="Le coach joue ma stratégie automatiquement, coup par coup"
+                    >
+                      🤖 {autoStrat ? 'Auto ON' : 'Auto-strat'}
                     </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help
@@ -520,6 +563,17 @@ export default function App() {
             config={config}
             onSave={(patch) => dispatch({ type: 'SET_CONFIG', patch })}
             onClose={() => setShowSettings(false)}
+          />
+        )}
+        {showStratSetup && (
+          <AutoStratModal
+            baseUnit={config.baseUnit}
+            current={autoStrat}
+            onApply={(cfg) => {
+              dispatch({ type: 'SET_AUTO_STRAT', cfg });
+              setShowStratSetup(false);
+            }}
+            onClose={() => setShowStratSetup(false)}
           />
         )}
       </div>

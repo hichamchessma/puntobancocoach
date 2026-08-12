@@ -971,3 +971,20 @@ body {
 .stake-idx.venge.st2 { background: #ff7a7a; }
 .stake-idx.venge.st3 { background: #f24d4d; }
 .stake-idx.venge.st4 { background: #d1001f; color: #fff; }
+
+/* ===== Panneau auto-stratégie (en jeu) ===== */
+.auto-strat-panel {
+  margin-top: 10px; padding: 12px 14px; border-radius: 14px;
+  background: linear-gradient(180deg, #12261c, #0c1a14);
+  border: 1px solid #1f6b3f; box-shadow: 0 0 0 1px rgba(41,207,134,0.15);
+}
+.asp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.asp-title { color: var(--tie); font-weight: 900; letter-spacing: 1.5px; font-size: 13px; }
+.asp-bet {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+  padding: 12px; border-radius: 12px; background: rgba(0,0,0,0.25); margin-bottom: 10px; min-height: 52px;
+}
+.asp-chip { font-weight: 900; letter-spacing: 1px; color: #ffdede; background: var(--banker-soft); padding: 6px 14px; border-radius: 8px; }
+.asp-amount { font-size: 24px; font-weight: 900; color: var(--gold); }
+.asp-stage { color: var(--text-dim); font-size: 12px; }
+.asp-wait { color: var(--text-dim); font-weight: 700; }

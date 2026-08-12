@@ -21,6 +21,71 @@ import type { Outcome } from './types';
 // win = vert · loss = orange (étapes 1/2/3) · loss4 = noir (perte finale des 4)
 export type StratMark = { kind: 'win' | 'loss' | 'loss4'; stage: number };
 
+// Config d'auto-jeu de la stratégie (mises par étape + vengeance)
+export interface AutoStratCfg {
+  stakes: number[]; // [é1, é2, é3, é4]
+  vengeance: boolean;
+  vengeanceStakes: number[];
+  vengeanceTimes: number;
+}
+
+/**
+ * Rejoue la machine sur l'historique et renvoie la mise à placer au PROCHAIN
+ * coup (côté toujours Banquier). null = pas de signal actif = aucune mise.
+ */
+export function nextStrategyBet(
+  outcomes: Outcome[],
+  cfg: AutoStratCfg,
+): { stage: number; amount: number } | null {
+  const seq = withoutTies(outcomes);
+  type State = 'WATCH_1' | 'R1' | 'R2' | 'WATCH_3' | 'R3' | 'R4';
+  let state: State = 'WATCH_1';
+  const stageOf = { R1: 1, R2: 2, R3: 3, R4: 4 } as const;
+
+  const venOn = cfg.vengeance && cfg.vengeanceStakes.length === 4 && cfg.vengeanceTimes > 0;
+  const venStakes = cfg.vengeanceStakes ?? cfg.stakes;
+  let vengeanceLeft = 0;
+  let cycleStakes = cfg.stakes;
+  const endCycle = (win: boolean) => {
+    if (!venOn) return;
+    if (win) {
+      if (vengeanceLeft > 0) vengeanceLeft--;
+    } else vengeanceLeft = cfg.vengeanceTimes;
+  };
+
+  for (let i = 0; i < seq.length; i++) {
+    let resolved = false;
+    if (state === 'R1' || state === 'R2' || state === 'R3' || state === 'R4') {
+      resolved = true;
+      if (seq[i] === 'B') {
+        state = 'WATCH_1';
+        endCycle(true);
+      } else if (state === 'R1') state = 'R2';
+      else if (state === 'R2') state = 'WATCH_3';
+      else if (state === 'R3') state = 'R4';
+      else {
+        state = 'WATCH_1';
+        endCycle(false);
+      }
+    }
+    if (!resolved && (state === 'WATCH_1' || state === 'WATCH_3')) {
+      const sig = i >= 1 && seq[i] === seq[i - 1] && (i === 1 || seq[i - 2] !== seq[i - 1]);
+      if (sig) {
+        if (state === 'WATCH_1') {
+          cycleStakes = venOn && vengeanceLeft > 0 ? venStakes : cfg.stakes;
+          state = 'R1';
+        } else state = 'R3';
+      }
+    }
+  }
+
+  if (state === 'R1' || state === 'R2' || state === 'R3' || state === 'R4') {
+    const stage = stageOf[state];
+    return { stage, amount: cycleStakes[stage - 1] ?? 0 };
+  }
+  return null;
+}
+
 export function computeStrategyMarks(outcomes: Outcome[]): Map<number, StratMark> {
   const seq = withoutTies(outcomes); // 'P' (bleu/Joueur) | 'B' (rouge/Banquier)
   const marks = new Map<number, StratMark>();

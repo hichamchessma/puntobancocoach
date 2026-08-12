@@ -11,6 +11,7 @@ import {
   nextProgression,
   resolveBet,
 } from '../engine/coach';
+import { nextStrategyBet, type AutoStratCfg } from '../engine/strategy';
 import type {
   Advice,
   Bet,
@@ -42,6 +43,7 @@ export interface SessionState {
   mode: Mode;
   betMode: BetMode;
   pendingBet: PendingBet | null;
+  autoStrat: AutoStratCfg | null; // auto-jeu de la stratégie (mise coup par coup)
   past: Omit<SessionState, 'past'>[]; // pour undo
 }
 
@@ -57,6 +59,7 @@ export function createInitialState(config: CoachConfig = DEFAULT_CONFIG): Sessio
     mode: 'sim',
     betMode: 'manual',
     pendingBet: null,
+    autoStrat: null,
     past: [],
   };
 }
@@ -67,6 +70,7 @@ export type Action =
   | { type: 'SET_MODE'; mode: Mode }
   | { type: 'SET_BET_MODE'; betMode: BetMode }
   | { type: 'SET_PENDING_BET'; bet: PendingBet | null }
+  | { type: 'SET_AUTO_STRAT'; cfg: AutoStratCfg | null }
   | { type: 'SET_CONFIG'; patch: Partial<CoachConfig> }
   | { type: 'NEW_SHOE' } // nouveau sabot : remet la road à zéro (garde stack)
   | { type: 'RESET_SESSION' } // tout remettre à zéro
@@ -96,9 +100,13 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
     progression = nextProgression(advice, r, state.config);
   }
 
-  // 2) Mise RÉELLE qui touche le stack : coach (auto) ou joueur (manuel).
+  // 2) Mise RÉELLE qui touche le stack : auto-stratégie (prioritaire), sinon
+  //    coach (auto) ou joueur (manuel).
   let chosen: { side: Side; amount: number; stage: number } | null = null;
-  if (state.betMode === 'coach') {
+  if (state.autoStrat) {
+    const b = nextStrategyBet(outcomes, state.autoStrat); // mise de la stratégie pour ce coup
+    if (b && b.amount > 0) chosen = { side: 'B', amount: b.amount, stage: b.stage };
+  } else if (state.betMode === 'coach') {
     if (advice.action === 'bet' && advice.side && advice.amount > 0)
       chosen = { side: advice.side, amount: advice.amount, stage: advice.stage };
   } else if (state.pendingBet && state.pendingBet.amount > 0) {
@@ -190,6 +198,9 @@ export function reducer(state: SessionState, action: Action): SessionState {
 
     case 'SET_PENDING_BET':
       return { ...state, pendingBet: action.bet };
+
+    case 'SET_AUTO_STRAT':
+      return { ...state, autoStrat: action.cfg, pendingBet: null };
 
     case 'SET_CONFIG': {
       const config = { ...state.config, ...action.patch };
