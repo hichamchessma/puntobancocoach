@@ -158,7 +158,10 @@ export default function App() {
         betWon = null;
       } else {
         const net = bet.net ?? 0;
-        betText = `${net >= 0 ? '+' : ''}${formatMoney(net, config.currency)}`;
+        const six = bet.result === 'win' && lastHand.outcome === 'B' && lastHand.bankerValue === 6;
+        betText =
+          `Misé ${formatMoney(bet.amount, config.currency)} → ${net >= 0 ? '+' : ''}${formatMoney(net, config.currency)}` +
+          (six ? ' (Banquier 6 · ½)' : '');
         betWon = bet.result === 'win';
       }
     }
