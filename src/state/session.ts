@@ -12,7 +12,7 @@ import {
   resolveBet,
 } from '../engine/coach';
 import { nextStrategyBet, nextTendanceBet, type AutoStratCfg, type AutoTendanceCfg } from '../engine/strategy';
-import { nextAntiBet, type AntiCfg } from '../engine/antiStrat';
+import { defaultAntiCfg, nextAntiBet, type AntiCfg } from '../engine/antiStrat';
 import type {
   Advice,
   Bet,
@@ -64,7 +64,7 @@ export function createInitialState(config: CoachConfig = DEFAULT_CONFIG): Sessio
     pendingBet: null,
     autoStrat: null,
     autoTendance: null,
-    autoAnti: null,
+    autoAnti: defaultAntiCfg(config.baseUnit), // strat "anti" active par défaut au démarrage
     past: [],
   };
 }

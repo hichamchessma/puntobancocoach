@@ -13,7 +13,10 @@
 // Vengeance : on démarre en niv.2 (doux). Dès qu'une tentative perd entièrement
 // (tous les paliers), niv.1 s'active pour `vengeance` cycles, puis retour niv.2.
 
+import { createShoe, dealHand } from './cards';
+import { betPayout } from './coach';
 import { opposite, withoutTies } from './patterns';
+import type { HichamReport } from './hichamStrat';
 import type { Outcome, Side } from './types';
 
 export interface AntiSide {
@@ -112,6 +115,23 @@ function replayAnti(seq: Side[], p: ReplayParams): Omit<AntiBet, 'kind'> | null 
   return { side: pending.side, amount: pending.amount, niveau, level: phase === 'follow' ? -1 : level, follow: phase === 'follow' };
 }
 
+// Config par défaut : on ne joue que le niveau 1 (agressif), suivi flat = 5 unités.
+export function defaultAntiSide(base: number): AntiSide {
+  return {
+    enabled: true,
+    useN2: false,
+    useN1: true,
+    levelsN2: [base, base * 2, base * 4],
+    levelsN1: [base * 1.5, base * 3, base * 6, base * 12],
+    vengeance: 4,
+    follow: base * 5,
+  };
+}
+
+export function defaultAntiCfg(base: number): AntiCfg {
+  return { antiZig: defaultAntiSide(base), antiDrag: defaultAntiSide(base) };
+}
+
 export function nextAntiBet(outcomes: Outcome[], cfg: AntiCfg): AntiBet | null {
   const seq = withoutTies(outcomes);
 
@@ -150,4 +170,132 @@ export function nextAntiBet(outcomes: Outcome[], cfg: AntiCfg): AntiBet | null {
   }
 
   return null;
+}
+
+// ---- Simulation de la strat anti sur N coups (pour l'onglet Simulation) ----
+
+export interface AntiSimOpts extends AntiCfg {
+  hands: number;
+  bankroll: number;
+  shoeHands: number; // 0 = infini
+}
+
+export function simulateAntiStrat(opts: AntiSimOpts): HichamReport {
+  const cfg: AntiCfg = { antiZig: opts.antiZig, antiDrag: opts.antiDrag };
+  let shoe = createShoe(8);
+  let idx = 0;
+  let handsInShoe = 0;
+  let shoeOutcomes: Outcome[] = [];
+
+  let stack = opts.bankroll;
+  const startStack = stack;
+  let maxStack = stack;
+  let minStack = stack;
+  let peak = stack;
+  let maxDrawdown = 0;
+  let staked = 0;
+  let net = 0;
+  let bets = 0;
+  let wins = 0;
+  let losses = 0;
+  let pushes = 0;
+  let nonTie = 0;
+  let vengeanceBets = 0;
+  const equity: number[] = [];
+  let busted = false;
+  let bustedAtHand: number | null = null;
+  const byT = {
+    zig: { bets: 0, wins: 0, losses: 0, net: 0 },
+    drag: { bets: 0, wins: 0, losses: 0, net: 0 },
+  };
+
+  const newShoe = () => {
+    shoe = createShoe(8);
+    idx = 0;
+    handsInShoe = 0;
+    shoeOutcomes = [];
+  };
+
+  for (let h = 0; h < opts.hands; h++) {
+    if (opts.shoeHands > 0 && handsInShoe >= opts.shoeHands) newShoe();
+    if (idx + 6 > shoe.length) {
+      shoe = createShoe(8);
+      idx = 0;
+      if (opts.shoeHands > 0) newShoe();
+    }
+
+    const bet = nextAntiBet(shoeOutcomes, cfg); // mise pour ce coup, d'après l'histo du sabot
+
+    const { result, next } = dealHand(shoe, idx);
+    idx = next;
+    handsInShoe++;
+    const o = result.outcome;
+
+    if (bet && bet.amount > 0) {
+      if (o === 'T') {
+        pushes++; // égalité = mise rendue
+      } else {
+        const win = o === bet.side;
+        const payout = betPayout(bet.side, bet.amount, win ? 'win' : 'lose', result.bankerValue);
+        stack += payout;
+        net += payout;
+        staked += bet.amount;
+        bets++;
+        if (bet.niveau === 1) vengeanceBets++;
+        const t = bet.kind === 'antizig' ? byT.zig : byT.drag;
+        t.bets++;
+        t.net += payout;
+        if (win) {
+          wins++;
+          t.wins++;
+        } else {
+          losses++;
+          t.losses++;
+        }
+      }
+    }
+
+    if (o !== 'T') nonTie++;
+    shoeOutcomes.push(o);
+
+    maxStack = Math.max(maxStack, stack);
+    minStack = Math.min(minStack, stack);
+    peak = Math.max(peak, stack);
+    maxDrawdown = Math.max(maxDrawdown, peak - stack);
+    equity.push(stack);
+    if (!busted && stack <= 0) {
+      busted = true;
+      bustedAtHand = h + 1;
+    }
+  }
+
+  return {
+    hands: opts.hands,
+    nonTie,
+    bets,
+    staked,
+    net,
+    roi: staked ? net / staked : 0,
+    wins,
+    losses,
+    pushes,
+    winsByStage: [wins, 0, 0, 0],
+    busts: 0,
+    startStack,
+    endStack: stack,
+    maxStack,
+    minStack,
+    maxDrawdown,
+    busted,
+    bustedAtHand,
+    equity,
+    vengeanceCycles: vengeanceBets,
+    byTendance: byT,
+  };
+}
+
+export function simulateAntiMany(opts: AntiSimOpts, runs: number): HichamReport[] {
+  const out: HichamReport[] = [];
+  for (let i = 0; i < runs; i++) out.push(simulateAntiStrat(opts));
+  return out;
 }

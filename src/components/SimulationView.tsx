@@ -6,10 +6,18 @@ import {
   type HichamReport,
 } from '../engine/hichamStrat';
 import { simulateStratTendance, simulateTendanceMany, type TendanceOpts } from '../engine/stratTendance';
+import {
+  defaultAntiCfg,
+  simulateAntiMany,
+  simulateAntiStrat,
+  type AntiCfg,
+  type AntiSimOpts,
+} from '../engine/antiStrat';
+import { AntiConfigEditor } from './AntiConfig';
 import { useMoney } from '../state/currency';
 import type { CoachConfig } from '../engine/types';
 
-type StratType = 'banker' | 'tendance';
+type StratType = 'banker' | 'tendance' | 'anti';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
@@ -23,6 +31,8 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const [zigBet, setZigBet] = useState(b);
   const [dragon, setDragon] = useState(true);
   const [dragBet, setDragBet] = useState(b);
+  // strat anti (contre la tendance)
+  const [antiCfg, setAntiCfg] = useState<AntiCfg>(defaultAntiCfg(b));
   const [hands, setHands] = useState(1000);
   const [bankroll, setBankroll] = useState(config.stack);
   const [shoeLimited, setShoeLimited] = useState(true);
@@ -61,23 +71,34 @@ export function SimulationView({ config }: { config: CoachConfig }) {
     dragon,
     dragonBet: Math.max(0, dragBet),
   };
+  const antiOpts: AntiSimOpts = { ...common, ...antiCfg };
+
+  const runOne = () =>
+    stratType === 'banker'
+      ? simulateHichamStrat(opts)
+      : stratType === 'tendance'
+        ? simulateStratTendance(tendanceOpts)
+        : simulateAntiStrat(antiOpts);
+  const runMany = (n: number) =>
+    stratType === 'banker'
+      ? simulateHichamMany(opts, n)
+      : stratType === 'tendance'
+        ? simulateTendanceMany(tendanceOpts, n)
+        : simulateAntiMany(antiOpts, n);
 
   const run = () => {
-    const one = stratType === 'banker' ? simulateHichamStrat(opts) : simulateStratTendance(tendanceOpts);
-    const many = () =>
-      stratType === 'banker'
-        ? simulateHichamMany(opts, Math.min(runs, 500))
-        : simulateTendanceMany(tendanceOpts, Math.min(runs, 500));
     if (runs <= 1) {
       setMulti(null);
-      setSingle(one);
+      setSingle(runOne());
     } else {
       setSingle(null);
-      setMulti(many());
+      setMulti(runMany(Math.min(runs, 500)));
     }
   };
 
-  const baseUnit = stratType === 'banker' ? opts.stakes[0] || 1 : zigBet || dragBet || 1;
+  const antiUnit = antiCfg.antiZig.levelsN1[0] || antiCfg.antiZig.levelsN2[0] || b;
+  const baseUnit =
+    stratType === 'banker' ? opts.stakes[0] || 1 : stratType === 'tendance' ? zigBet || dragBet || 1 : antiUnit || 1;
 
   return (
     <div className="col">
@@ -93,12 +114,17 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           <button className={stratType === 'tendance' ? 'active' : ''} onClick={() => { setStratType('tendance'); setSingle(null); setMulti(null); }}>
             stratTendance
           </button>
+          <button className={stratType === 'anti' ? 'active' : ''} onClick={() => { setStratType('anti'); setSingle(null); setMulti(null); }}>
+            stratAnti
+          </button>
         </div>
 
         <p className="coach-text" style={{ marginTop: 0 }}>
           {stratType === 'banker'
             ? 'Signal = nouvelle répétition, Banquier en 4 étapes avec pause après l’étape 2. Choisis la mise de chaque étape.'
-            : 'Suit la tendance en MISE À PLAT (aucune progression) : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Une seule mise par tendance ; on suit tant que ça tient, on s’arrête dès que ça casse.'}
+            : stratType === 'tendance'
+              ? 'Suit la tendance en MISE À PLAT (aucune progression) : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Une seule mise par tendance ; on suit tant que ça tient, on s’arrête dès que ça casse.'
+              : 'On parie CONTRE la tendance : anti-zigzag (le zigzag va s’arrêter -> même couleur) et/ou anti-dragon (la série casse -> couleur opposée), en paliers. Niveau 2 (doux) et/ou niveau 1 (agressif) ; les 2 = vengeance. Tous paliers perdus -> on suit la tendance à plat.'}
         </p>
 
         {stratType === 'banker' && (
@@ -167,6 +193,8 @@ export function SimulationView({ config }: { config: CoachConfig }) {
             </div>
           </div>
         )}
+
+        {stratType === 'anti' && <AntiConfigEditor value={antiCfg} onChange={setAntiCfg} />}
 
         <div className="stat-row" style={{ marginTop: 12 }}>
           <div className="field">
