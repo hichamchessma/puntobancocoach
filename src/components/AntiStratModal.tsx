@@ -4,8 +4,8 @@ import type { AntiCfg, AntiSide } from '../engine/antiStrat';
 function useAntiSide(base: number, cur: AntiSide | undefined, n2sig: string, n1sig: string) {
   const [enabled, setEnabled] = useState(cur?.enabled ?? true);
   const [n2, setN2] = useState<number[]>(cur?.levelsN2 ?? [base, base * 2, base * 4]);
-  const [n1, setN1] = useState<number[]>(cur?.levelsN1 ?? [base, base * 2, base * 4, base * 8]);
-  const [ven, setVen] = useState(cur?.vengeance ?? 3);
+  const [n1, setN1] = useState<number[]>(cur?.levelsN1 ?? [base * 1.5, base * 3, base * 6, base * 12]);
+  const [ven, setVen] = useState(cur?.vengeance ?? 4);
   const [follow, setFollow] = useState(cur?.follow ?? base);
   const set = (arr: number[], setter: (a: number[]) => void, i: number, v: number) =>
     setter(arr.map((x, j) => (j === i ? Math.max(0, v) : x)));
