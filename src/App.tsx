@@ -439,7 +439,15 @@ export default function App() {
                             {tendBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
                           </span>
                           <span className="asp-amount">{formatMoney(tendBet.amount, config.currency)}</span>
-                          <span className="asp-stage">{tendBet.tendance === 'zig' ? '🏓 zigzag' : '🐉 dragon'}</span>
+                          <span className="asp-stage">
+                            {tendBet.tendance === 'collage'
+                              ? '🧲 collage'
+                              : tendBet.tendance === 'decollage'
+                                ? '✂️ décollage'
+                                : tendBet.tendance === 'zig'
+                                  ? '🏓 zigzag'
+                                  : '🐉 dragon'}
+                          </span>
                         </>
                       ) : (
                         <span className="asp-wait">⏳ Pas de tendance active — aucune mise ce coup</span>

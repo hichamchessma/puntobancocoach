@@ -18,42 +18,62 @@
 import { opposite, withoutTies } from './patterns';
 import type { Outcome, Side } from './types';
 
-// Config d'auto-jeu de stratTendance (mise à plat, suivre la tendance)
+export type TendKind = 'zig' | 'drag' | 'collage' | 'decollage';
+
+// Config d'auto-jeu de stratTendance (mise à plat). 4 tendances, priorité :
+// collage > décollage > dragon > zigzag.
 export interface AutoTendanceCfg {
-  zigzag: boolean;
+  zigzag: boolean; // classique : dès un changement -> parie l'alternance
   zigzagBet: number;
-  dragon: boolean;
+  dragon: boolean; // classique : run >= 2 -> parie la série (on ride)
   dragonBet: number;
+  collage: boolean; // double-chop : après 2 runs >=2, à chaque changement, parie que le nouveau run double
+  collageBet: number;
+  decollage: boolean; // zigzag de simples : 2 simples d'affilée, parie que ça reste simple
+  decollageBet: number;
+}
+
+/** Découpe la fin de l'historique en runs {couleur, longueur}. */
+function tailRuns(seq: Side[]): { color: Side; len: number }[] {
+  const runs: { color: Side; len: number }[] = [];
+  for (const s of seq) {
+    const last = runs[runs.length - 1];
+    if (last && last.color === s) last.len++;
+    else runs.push({ color: s, len: 1 });
+  }
+  return runs;
 }
 
 /**
- * Rejoue stratTendance sur l'historique et renvoie la mise à placer au PROCHAIN
- * coup (mise à plat, on suit la tendance jusqu'à ce qu'elle casse). null = aucune.
+ * Décide la mise du PROCHAIN coup selon la structure des runs récents.
+ * Priorité : collage > décollage > dragon > zigzag. null = aucune mise.
  */
 export function nextTendanceBet(
   outcomes: Outcome[],
   cfg: AutoTendanceCfg,
-): { side: Side; amount: number; tendance: 'zig' | 'drag' } | null {
+): { side: Side; amount: number; tendance: TendKind } | null {
   const seq = withoutTies(outcomes);
-  let armed: { tendance: 'zig' | 'drag'; side: Side } | null = null;
-  const sideFor = (t: 'zig' | 'drag', last: Side): Side => (t === 'zig' ? opposite(last) : last);
+  if (seq.length < 1) return null;
+  const runs = tailRuns(seq);
+  const cur = runs[runs.length - 1];
+  const prev = runs[runs.length - 2];
+  const prev2 = runs[runs.length - 3];
+  const last = seq[seq.length - 1];
 
-  for (let i = 0; i < seq.length; i++) {
-    if (armed) {
-      if (seq[i] === armed.side) armed = { tendance: armed.tendance, side: sideFor(armed.tendance, seq[i]) };
-      else armed = null;
-    }
-    if (!armed && i >= 1) {
-      if (cfg.zigzag && seq[i] !== seq[i - 1]) armed = { tendance: 'zig', side: opposite(seq[i]) };
-      else if (cfg.dragon && seq[i] === seq[i - 1] && (i < 2 || seq[i - 2] !== seq[i - 1]))
-        armed = { tendance: 'drag', side: seq[i] };
-    }
+  if (cur.len === 1) {
+    // on vient de changer de couleur (le run courant fait 1)
+    const collageOk = !!prev && prev.len >= 2 && !!prev2 && prev2.len >= 2;
+    const decollageOk = !!prev && prev.len === 1;
+    if (cfg.collage && collageOk)
+      return { side: last, amount: cfg.collageBet, tendance: 'collage' }; // parie que ça double
+    if (cfg.decollage && decollageOk)
+      return { side: opposite(last), amount: cfg.decollageBet, tendance: 'decollage' }; // parie zigzag
+    if (cfg.zigzag && prev)
+      return { side: opposite(last), amount: cfg.zigzagBet, tendance: 'zig' };
+    return null;
   }
-
-  if (armed) {
-    const amount = armed.tendance === 'zig' ? cfg.zigzagBet : cfg.dragonBet;
-    return { side: armed.side, amount, tendance: armed.tendance };
-  }
+  // run courant >= 2 : le dragon ride la série
+  if (cfg.dragon) return { side: last, amount: cfg.dragonBet, tendance: 'drag' };
   return null;
 }
 
