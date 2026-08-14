@@ -2,6 +2,8 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { AdvicePanel } from './components/AdvicePanel';
 import { AutoStratModal } from './components/AutoStratModal';
 import { AutoTendanceModal } from './components/AutoTendanceModal';
+import { AntiStratModal } from './components/AntiStratModal';
+import { nextAntiBet } from './engine/antiStrat';
 import { BacktestView } from './components/BacktestView';
 import { CasinoBet } from './components/CasinoBet';
 import { CoachOverlay } from './components/CoachOverlay';
@@ -63,6 +65,7 @@ export default function App() {
   const [showStrat, setShowStrat] = useState(true);
   const [showStratSetup, setShowStratSetup] = useState(false);
   const [showTendSetup, setShowTendSetup] = useState(false);
+  const [showAntiSetup, setShowAntiSetup] = useState(false);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
@@ -92,9 +95,10 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, pendingBet, autoStrat, autoTendance, config, stack, startStack, hands } = state;
+  const { mode, betMode, pendingBet, autoStrat, autoTendance, autoAnti, config, stack, startStack, hands } = state;
   const stratBet = autoStrat ? nextStrategyBet(outcomes, autoStrat) : null;
   const tendBet = autoTendance ? nextTendanceBet(outcomes, autoTendance) : null;
+  const antiBet = autoAnti ? nextAntiBet(outcomes, autoAnti) : null;
 
   const order = dealSlots(lastHand);
   const total = order.length;
@@ -461,6 +465,41 @@ export default function App() {
                       <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
                     )}
                   </div>
+                ) : autoAnti ? (
+                  <div className="auto-strat-panel">
+                    <div className="asp-head">
+                      <span className="asp-title">⚔️ STRAT ANTI ACTIVE</span>
+                      <div className="btn-row">
+                        <button className="btn" onClick={() => setShowAntiSetup(true)}>⚙ Régler</button>
+                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_ANTI', cfg: null })}>
+                          ⏹ Désactiver
+                        </button>
+                      </div>
+                    </div>
+                    <div className="asp-bet">
+                      {antiBet ? (
+                        <>
+                          <span className={`asp-chip ${antiBet.side === 'P' ? 'p' : 'b'}`}>
+                            {antiBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
+                          </span>
+                          <span className="asp-amount">{formatMoney(antiBet.amount, config.currency)}</span>
+                          <span className="asp-stage">
+                            {antiBet.kind === 'antizig' ? '🏓 anti-zig' : '🐉 anti-drag'} · niv{antiBet.niveau}
+                            {antiBet.follow ? ' · suivi' : ` · P${antiBet.level + 1}`}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="asp-wait">⏳ Pas de signal anti — aucune mise ce coup</span>
+                      )}
+                    </div>
+                    {mode === 'sim' ? (
+                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
+                        🂠 DISTRIBUER <span className="kbd">Espace</span>
+                      </button>
+                    ) : (
+                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
+                    )}
+                  </div>
                 ) : (
                   <CasinoBet
                     betMode={betMode}
@@ -538,6 +577,13 @@ export default function App() {
                       title="Le coach joue stratTendance (mise à plat) automatiquement"
                     >
                       🐉 {autoTendance ? 'Tend. ON' : 'Tendance'}
+                    </button>
+                    <button
+                      className={`btn ${autoAnti ? 'strat-on' : ''}`}
+                      onClick={() => setShowAntiSetup(true)}
+                      title="Le coach joue la strat anti (contre la tendance) automatiquement"
+                    >
+                      ⚔️ {autoAnti ? 'Anti ON' : 'Anti'}
                     </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help
@@ -638,6 +684,17 @@ export default function App() {
               setShowTendSetup(false);
             }}
             onClose={() => setShowTendSetup(false)}
+          />
+        )}
+        {showAntiSetup && (
+          <AntiStratModal
+            baseUnit={config.baseUnit}
+            current={autoAnti}
+            onApply={(cfg) => {
+              dispatch({ type: 'SET_AUTO_ANTI', cfg });
+              setShowAntiSetup(false);
+            }}
+            onClose={() => setShowAntiSetup(false)}
           />
         )}
       </div>

@@ -1000,3 +1000,4 @@ body {
 @media (max-width: 700px) { .tend-row { grid-template-columns: 1fr; } }
 .asp-chip.p { background: var(--player-soft); color: #dbe7ff; }
 .asp-chip.b { background: var(--banker-soft); color: #ffdede; }
+.venge-box .hint { color: var(--text-dim); font-size: 11px; line-height: 1.35; margin-top: 4px; }

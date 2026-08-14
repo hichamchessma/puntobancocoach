@@ -12,6 +12,7 @@ import {
   resolveBet,
 } from '../engine/coach';
 import { nextStrategyBet, nextTendanceBet, type AutoStratCfg, type AutoTendanceCfg } from '../engine/strategy';
+import { nextAntiBet, type AntiCfg } from '../engine/antiStrat';
 import type {
   Advice,
   Bet,
@@ -45,6 +46,7 @@ export interface SessionState {
   pendingBet: PendingBet | null;
   autoStrat: AutoStratCfg | null; // auto-jeu de hichamostratforbanker (coup par coup)
   autoTendance: AutoTendanceCfg | null; // auto-jeu de stratTendance (coup par coup)
+  autoAnti: AntiCfg | null; // auto-jeu de la strat "anti" (coup par coup)
   past: Omit<SessionState, 'past'>[]; // pour undo
 }
 
@@ -62,6 +64,7 @@ export function createInitialState(config: CoachConfig = DEFAULT_CONFIG): Sessio
     pendingBet: null,
     autoStrat: null,
     autoTendance: null,
+    autoAnti: null,
     past: [],
   };
 }
@@ -74,6 +77,7 @@ export type Action =
   | { type: 'SET_PENDING_BET'; bet: PendingBet | null }
   | { type: 'SET_AUTO_STRAT'; cfg: AutoStratCfg | null }
   | { type: 'SET_AUTO_TENDANCE'; cfg: AutoTendanceCfg | null }
+  | { type: 'SET_AUTO_ANTI'; cfg: AntiCfg | null }
   | { type: 'SET_CONFIG'; patch: Partial<CoachConfig> }
   | { type: 'NEW_SHOE' } // nouveau sabot : remet la road à zéro (garde stack)
   | { type: 'RESET_SESSION' } // tout remettre à zéro
@@ -111,6 +115,9 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
     if (b && b.amount > 0) chosen = { side: 'B', amount: b.amount, stage: b.stage };
   } else if (state.autoTendance) {
     const b = nextTendanceBet(outcomes, state.autoTendance); // mise à plat de la tendance
+    if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };
+  } else if (state.autoAnti) {
+    const b = nextAntiBet(outcomes, state.autoAnti); // strat anti (contre la tendance)
     if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };
   } else if (state.betMode === 'coach') {
     if (advice.action === 'bet' && advice.side && advice.amount > 0)
@@ -206,10 +213,13 @@ export function reducer(state: SessionState, action: Action): SessionState {
       return { ...state, pendingBet: action.bet };
 
     case 'SET_AUTO_STRAT':
-      return { ...state, autoStrat: action.cfg, autoTendance: null, pendingBet: null };
+      return { ...state, autoStrat: action.cfg, autoTendance: null, autoAnti: null, pendingBet: null };
 
     case 'SET_AUTO_TENDANCE':
-      return { ...state, autoTendance: action.cfg, autoStrat: null, pendingBet: null };
+      return { ...state, autoTendance: action.cfg, autoStrat: null, autoAnti: null, pendingBet: null };
+
+    case 'SET_AUTO_ANTI':
+      return { ...state, autoAnti: action.cfg, autoStrat: null, autoTendance: null, pendingBet: null };
 
     case 'SET_CONFIG': {
       const config = { ...state.config, ...action.patch };
