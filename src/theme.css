@@ -1001,3 +1001,6 @@ body {
 .asp-chip.p { background: var(--player-soft); color: #dbe7ff; }
 .asp-chip.b { background: var(--banker-soft); color: #ffdede; }
 .venge-box .hint { color: var(--text-dim); font-size: 11px; line-height: 1.35; margin-top: 4px; }
+.niv-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); letter-spacing: .5px; }
+.niv-toggle input { width: auto; margin: 0; }
+.niv-toggle .niv-lbl { cursor: pointer; }

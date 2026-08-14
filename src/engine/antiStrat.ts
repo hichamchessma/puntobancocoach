@@ -18,6 +18,8 @@ import type { Outcome, Side } from './types';
 
 export interface AntiSide {
   enabled: boolean;
+  useN2: boolean; // jouer le niveau 2 (doux)
+  useN1: boolean; // jouer le niveau 1 (vengeance / plus agressif)
   levelsN2: number[]; // paliers niveau 2 (doux)
   levelsN1: number[]; // paliers niveau 1 (vengeance)
   vengeance: number; // nb de cycles en niv.1 après une perte
@@ -40,6 +42,8 @@ export interface AntiBet {
 }
 
 interface ReplayParams {
+  useN2: boolean;
+  useN1: boolean;
   levelsN2: number[];
   levelsN1: number[];
   venN: number;
@@ -54,9 +58,15 @@ function replayAnti(seq: Side[], p: ReplayParams): Omit<AntiBet, 'kind'> | null 
   let venLeft = 0;
   let phase: 'watch' | 'progress' | 'follow' = 'watch';
   let level = 0;
-  let levels = p.levelsN2;
-  let niveau: 1 | 2 = 2;
+  let levels = p.useN2 ? p.levelsN2 : p.levelsN1;
+  let niveau: 1 | 2 = p.useN2 ? 2 : 1;
   let pending: { side: Side; amount: number } | null = null;
+  // niveau à jouer selon les niveaux activés (les 2 = strat complète : niv.2 puis
+  // niv.1 en vengeance ; un seul = on force celui-là).
+  const pickNiveau = (): 1 | 2 => {
+    if (p.useN2 && p.useN1) return venLeft > 0 ? 1 : 2;
+    return p.useN2 ? 2 : 1;
+  };
 
   for (let i = 0; i < seq.length; i++) {
     if (pending) {
@@ -87,7 +97,7 @@ function replayAnti(seq: Side[], p: ReplayParams): Omit<AntiBet, 'kind'> | null 
     }
 
     if (!pending && phase === 'watch') {
-      niveau = venLeft > 0 ? 1 : 2;
+      niveau = pickNiveau();
       levels = niveau === 1 ? p.levelsN1 : p.levelsN2;
       const sig = niveau === 1 ? p.sigN1(i) : p.sigN2(i);
       if (sig) {
@@ -105,12 +115,15 @@ function replayAnti(seq: Side[], p: ReplayParams): Omit<AntiBet, 'kind'> | null 
 export function nextAntiBet(outcomes: Outcome[], cfg: AntiCfg): AntiBet | null {
   const seq = withoutTies(outcomes);
 
-  if (cfg.antiZig.enabled && cfg.antiZig.levelsN2.length && cfg.antiZig.levelsN1.length) {
+  const zz = cfg.antiZig;
+  if (zz.enabled && (zz.useN1 || zz.useN2)) {
     const z = replayAnti(seq, {
-      levelsN2: cfg.antiZig.levelsN2,
-      levelsN1: cfg.antiZig.levelsN1,
-      venN: Math.max(0, cfg.antiZig.vengeance),
-      followAmount: cfg.antiZig.follow,
+      useN2: zz.useN2,
+      useN1: zz.useN1,
+      levelsN2: zz.levelsN2,
+      levelsN1: zz.levelsN1,
+      venN: Math.max(0, zz.vengeance),
+      followAmount: zz.follow,
       sigN2: (i) => i >= 2 && seq[i] !== seq[i - 1] && seq[i - 1] !== seq[i - 2],
       sigN1: (i) => i >= 1 && seq[i] !== seq[i - 1],
       againstSide: (last) => last, // même couleur = on parie le dédoublement
@@ -119,12 +132,15 @@ export function nextAntiBet(outcomes: Outcome[], cfg: AntiCfg): AntiBet | null {
     if (z) return { ...z, kind: 'antizig' };
   }
 
-  if (cfg.antiDrag.enabled && cfg.antiDrag.levelsN2.length && cfg.antiDrag.levelsN1.length) {
+  const dd = cfg.antiDrag;
+  if (dd.enabled && (dd.useN1 || dd.useN2)) {
     const d = replayAnti(seq, {
-      levelsN2: cfg.antiDrag.levelsN2,
-      levelsN1: cfg.antiDrag.levelsN1,
-      venN: Math.max(0, cfg.antiDrag.vengeance),
-      followAmount: cfg.antiDrag.follow,
+      useN2: dd.useN2,
+      useN1: dd.useN1,
+      levelsN2: dd.levelsN2,
+      levelsN1: dd.levelsN1,
+      venN: Math.max(0, dd.vengeance),
+      followAmount: dd.follow,
       sigN2: (i) => i >= 2 && seq[i] === seq[i - 1] && seq[i - 1] === seq[i - 2], // triple
       sigN1: (i) => i >= 1 && seq[i] === seq[i - 1], // double
       againstSide: (last) => opposite(last), // on casse la série
