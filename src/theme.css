@@ -996,3 +996,5 @@ body {
 .stake-idx.drag.st2 { background: #ff8f8f; }
 .stake-idx.drag.st3 { background: #f76b6b; }
 .stake-idx.drag.st4 { background: #e0414b; color: #fff; }
+.tend-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .tend-row { grid-template-columns: 1fr; } }

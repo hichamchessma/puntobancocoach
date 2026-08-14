@@ -43,6 +43,10 @@ export interface HichamReport {
   bustedAtHand: number | null;
   equity: number[];
   vengeanceCycles: number; // nb de progressions jouées en mode vengeance
+  byTendance?: {
+    zig: { bets: number; wins: number; losses: number; net: number };
+    drag: { bets: number; wins: number; losses: number; net: number };
+  };
 }
 
 export function simulateHichamStrat(opts: HichamOpts): HichamReport {

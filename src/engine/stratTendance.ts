@@ -1,13 +1,16 @@
-// Simulation de "stratTendance" : suivre la tendance actuelle, 2 styles.
+// Simulation de "stratTendance" : suivre la tendance actuelle, en MISE À PLAT
+// (aucune progression). 2 styles :
 //
-// - ZIGZAG : dès le moindre changement (le dernier résultat diffère du précédent),
-//   on parie que l'alternance continue -> on mise l'OPPOSÉ du dernier.
-// - DRAGON : dès le moindre doublement (2 mêmes après un changement),
-//   on parie que la série continue -> on mise la MÊME couleur que le dernier.
+// - ZIGZAG : dès le moindre changement, on parie que l'alternance continue
+//   -> on mise (à plat) l'OPPOSÉ du dernier, et on continue tant que ça alterne.
+// - DRAGON : dès le moindre doublement (2 mêmes après un changement), on parie
+//   que la série continue -> on mise (à plat) la MÊME couleur, et on continue
+//   tant que la série tient.
 //
-// Chaque style a ses 4 mises (progression 4 étapes, martingale : perd -> étape
-// suivante en continuant de suivre la tendance ; gagne -> reset ; perte étape 4
-// -> reset). Paiement réel (Banquier 6 = moitié, égalité = push).
+// Une seule mise par tendance (le bet de départ). Tant qu'on gagne, on continue
+// de suivre ; dès qu'on perd (la tendance casse), on s'arrête et on attend le
+// prochain signal (l'autre tendance peut alors démarrer si elle est activée).
+// Paiement réel (Banquier 6 = moitié, égalité = push).
 
 import { createShoe, dealHand } from './cards';
 import { betPayout } from './coach';
@@ -17,27 +20,22 @@ import type { Side } from './types';
 
 export interface TendanceOpts {
   zigzag: boolean;
-  zigzagStakes: number[]; // [é1, é2, é3, é4]
+  zigzagBet: number; // mise à plat du zigzag
   dragon: boolean;
-  dragonStakes: number[]; // [é1, é2, é3, é4]
+  dragonBet: number; // mise à plat du dragon
   hands: number;
   bankroll: number;
   shoeHands: number; // 0 = infini
 }
 
-interface Armed {
-  tendance: 'zig' | 'drag';
-  stage: number; // 1..4
-  side: Side;
-  stakes: number[];
-}
+type Tend = 'zig' | 'drag';
 
 export function simulateStratTendance(opts: TendanceOpts): HichamReport {
   let shoe = createShoe(8);
   let idx = 0;
   let handsInShoe = 0;
   let seq: Side[] = [];
-  let armed: Armed | null = null;
+  let armed: { tendance: Tend; side: Side } | null = null;
 
   let stack = opts.bankroll;
   const startStack = stack;
@@ -51,12 +49,14 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
   let wins = 0;
   let losses = 0;
   let pushes = 0;
-  let busts = 0;
   let nonTie = 0;
-  const winsByStage = [0, 0, 0, 0];
   const equity: number[] = [];
   let busted = false;
   let bustedAtHand: number | null = null;
+  const byT: Record<Tend, { bets: number; wins: number; losses: number; net: number }> = {
+    zig: { bets: 0, wins: 0, losses: 0, net: 0 },
+    drag: { bets: 0, wins: 0, losses: 0, net: 0 },
+  };
 
   const newShoe = () => {
     shoe = createShoe(8);
@@ -65,8 +65,8 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
     seq = [];
     armed = null;
   };
-
-  const sideFor = (t: 'zig' | 'drag', last: Side): Side => (t === 'zig' ? opposite(last) : last);
+  const sideFor = (t: Tend, last: Side): Side => (t === 'zig' ? opposite(last) : last);
+  const betOf = (t: Tend) => (t === 'zig' ? opts.zigzagBet : opts.dragonBet);
 
   for (let h = 0; h < opts.hands; h++) {
     if (opts.shoeHands > 0 && handsInShoe >= opts.shoeHands) newShoe();
@@ -91,41 +91,35 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
     seq.push(o);
     const i = seq.length - 1;
 
-    // 1) résoudre la mise armée sur ce coup
+    // 1) résoudre la mise à plat armée
     if (armed) {
-      const amount = armed.stakes[armed.stage - 1] ?? 0;
+      const t: Tend = armed.tendance;
+      const amount = betOf(t);
       const win = o === armed.side;
       const payout = betPayout(armed.side, amount, win ? 'win' : 'lose', result.bankerValue);
       stack += payout;
       net += payout;
       staked += amount;
       bets++;
+      byT[t].bets++;
+      byT[t].net += payout;
       if (win) {
         wins++;
-        winsByStage[armed.stage - 1]++;
-        armed = null;
+        byT[t].wins++;
+        armed = { tendance: t, side: sideFor(t, o) }; // on continue de suivre (flat)
       } else {
         losses++;
-        if (armed.stage < 4) {
-          armed = {
-            tendance: armed.tendance,
-            stage: armed.stage + 1,
-            side: sideFor(armed.tendance, o), // on continue à suivre la tendance
-            stakes: armed.stakes,
-          };
-        } else {
-          busts++;
-          armed = null;
-        }
+        byT[t].losses++;
+        armed = null; // la tendance a cassé
       }
     }
 
-    // 2) si libre, détecter une tendance à suivre pour le prochain coup
+    // 2) si libre, démarrer une tendance sur le signal
     if (!armed && i >= 1) {
       if (opts.zigzag && seq[i] !== seq[i - 1]) {
-        armed = { tendance: 'zig', stage: 1, side: opposite(seq[i]), stakes: opts.zigzagStakes };
+        armed = { tendance: 'zig', side: opposite(seq[i]) };
       } else if (opts.dragon && seq[i] === seq[i - 1] && (i < 2 || seq[i - 2] !== seq[i - 1])) {
-        armed = { tendance: 'drag', stage: 1, side: seq[i], stakes: opts.dragonStakes };
+        armed = { tendance: 'drag', side: seq[i] };
       }
     }
 
@@ -150,8 +144,8 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
     wins,
     losses,
     pushes,
-    winsByStage,
-    busts,
+    winsByStage: [wins, 0, 0, 0],
+    busts: 0,
     startStack,
     endStack: stack,
     maxStack,
@@ -161,6 +155,7 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
     bustedAtHand,
     equity,
     vengeanceCycles: 0,
+    byTendance: byT,
   };
 }
 

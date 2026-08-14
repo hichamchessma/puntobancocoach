@@ -18,13 +18,11 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const b = config.baseUnit;
   const [stratType, setStratType] = useState<StratType>('banker');
   const [stakes, setStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
-  // stratTendance
+  // stratTendance (mise à plat : un seul montant par tendance)
   const [zigzag, setZigzag] = useState(true);
-  const [zigStakes, setZigStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
+  const [zigBet, setZigBet] = useState(b);
   const [dragon, setDragon] = useState(true);
-  const [dragStakes, setDragStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
-  const setZig = (i: number, v: number) => setZigStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
-  const setDrag = (i: number, v: number) => setDragStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
+  const [dragBet, setDragBet] = useState(b);
   const [hands, setHands] = useState(1000);
   const [bankroll, setBankroll] = useState(config.stack);
   const [shoeLimited, setShoeLimited] = useState(true);
@@ -59,9 +57,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const tendanceOpts: TendanceOpts = {
     ...common,
     zigzag,
-    zigzagStakes: zigStakes.map((s) => Math.max(0, s)),
+    zigzagBet: Math.max(0, zigBet),
     dragon,
-    dragonStakes: dragStakes.map((s) => Math.max(0, s)),
+    dragonBet: Math.max(0, dragBet),
   };
 
   const run = () => {
@@ -79,7 +77,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
     }
   };
 
-  const baseUnit = stratType === 'banker' ? opts.stakes[0] || 1 : zigStakes[0] || 1;
+  const baseUnit = stratType === 'banker' ? opts.stakes[0] || 1 : zigBet || dragBet || 1;
 
   return (
     <div className="col">
@@ -100,7 +98,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         <p className="coach-text" style={{ marginTop: 0 }}>
           {stratType === 'banker'
             ? 'Signal = nouvelle répétition, Banquier en 4 étapes avec pause après l’étape 2. Choisis la mise de chaque étape.'
-            : 'Suit la tendance : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Chaque style a ses 4 mises.'}
+            : 'Suit la tendance en MISE À PLAT (aucune progression) : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Une seule mise par tendance ; on suit tant que ça tient, on s’arrête dès que ça casse.'}
         </p>
 
         {stratType === 'banker' && (
@@ -145,41 +143,29 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         )}
 
         {stratType === 'tendance' && (
-          <>
+          <div className="tend-row">
             <div className={`venge-box ${zigzag ? 'on-zig' : ''}`}>
-              <div className="venge-head">
-                <label className="toggle" style={{ color: 'var(--text)' }}>
-                  <input type="checkbox" checked={zigzag} onChange={() => setZigzag((v) => !v)} />
-                  🏓 <strong>Tendance Zigzag</strong> — dès un changement, on parie l'alternance
-                </label>
-              </div>
-              <div className="stakes-row" style={{ opacity: zigzag ? 1 : 0.45 }}>
-                {zigStakes.map((s, i) => (
-                  <div key={i} className="stake-field">
-                    <span className={`stake-idx st${i + 1}`}>Zig {i + 1}</span>
-                    <input type="number" min={0} step={10} value={s} disabled={!zigzag} onChange={(e) => setZig(i, Number(e.target.value))} />
-                  </div>
-                ))}
+              <label className="toggle" style={{ color: 'var(--text)' }}>
+                <input type="checkbox" checked={zigzag} onChange={() => setZigzag((v) => !v)} />
+                🏓 <strong>Zigzag</strong> — dès un changement, on parie l'alternance
+              </label>
+              <div className="field" style={{ marginTop: 8, opacity: zigzag ? 1 : 0.45 }}>
+                <label>Mise à plat (Zigzag)</label>
+                <input type="number" min={0} step={10} value={zigBet} disabled={!zigzag} onChange={(e) => setZigBet(Number(e.target.value))} />
               </div>
             </div>
 
-            <div className={`venge-box ${dragon ? 'on-drag' : ''}`} style={{ marginTop: 12 }}>
-              <div className="venge-head">
-                <label className="toggle" style={{ color: 'var(--text)' }}>
-                  <input type="checkbox" checked={dragon} onChange={() => setDragon((v) => !v)} />
-                  🐉 <strong>Tendance Dragon</strong> — dès un doublement, on parie la série
-                </label>
-              </div>
-              <div className="stakes-row" style={{ opacity: dragon ? 1 : 0.45 }}>
-                {dragStakes.map((s, i) => (
-                  <div key={i} className="stake-field">
-                    <span className={`stake-idx drag st${i + 1}`}>Drag {i + 1}</span>
-                    <input type="number" min={0} step={10} value={s} disabled={!dragon} onChange={(e) => setDrag(i, Number(e.target.value))} />
-                  </div>
-                ))}
+            <div className={`venge-box ${dragon ? 'on-drag' : ''}`}>
+              <label className="toggle" style={{ color: 'var(--text)' }}>
+                <input type="checkbox" checked={dragon} onChange={() => setDragon((v) => !v)} />
+                🐉 <strong>Dragon</strong> — dès un doublement, on parie la série
+              </label>
+              <div className="field" style={{ marginTop: 8, opacity: dragon ? 1 : 0.45 }}>
+                <label>Mise à plat (Dragon)</label>
+                <input type="number" min={0} step={10} value={dragBet} disabled={!dragon} onChange={(e) => setDragBet(Number(e.target.value))} />
               </div>
             </div>
-          </>
+          </div>
         )}
 
         <div className="stat-row" style={{ marginTop: 12 }}>
@@ -252,16 +238,45 @@ function SingleReport({ r, fmt, unit }: { r: HichamReport; fmt: (n: number) => s
         <Metric k="Plus bas / drawdown" v={`${fmt(r.minStack)} / -${fmt(r.maxDrawdown)}`} />
       </div>
 
-      <div className="coach-label" style={{ marginTop: 14 }}>DÉTAIL PAR ÉTAPE</div>
-      <div className="bt-grid">
-        <Metric k="🟢 Victoires étape 1" v={`${r.winsByStage[0]}`} />
-        <Metric k="🟢 Victoires étape 2" v={`${r.winsByStage[1]}`} />
-        <Metric k="🟢 Victoires étape 3" v={`${r.winsByStage[2]}`} />
-        <Metric k="🟢 Victoires étape 4" v={`${r.winsByStage[3]}`} />
-        <Metric k="🩸 Pertes étape 4" v={`${r.busts}`} cls={r.busts ? 'neg' : ''} accent />
-        <Metric k="Égalités (push)" v={`${r.pushes}`} />
-        {r.vengeanceCycles > 0 && <Metric k="🔥 Cycles vengeance" v={`${r.vengeanceCycles}`} />}
-      </div>
+      {r.byTendance ? (
+        <>
+          <div className="coach-label" style={{ marginTop: 14 }}>DÉTAIL PAR TENDANCE</div>
+          <div className="bt-grid">
+            <Metric
+              k="🏓 Zigzag (W/L)"
+              v={`${r.byTendance.zig.wins}/${r.byTendance.zig.losses}`}
+            />
+            <Metric
+              k="🏓 Zigzag · bilan"
+              v={`${r.byTendance.zig.net >= 0 ? '+' : ''}${fmt(r.byTendance.zig.net)}`}
+              cls={r.byTendance.zig.net >= 0 ? 'pos' : 'neg'}
+            />
+            <Metric
+              k="🐉 Dragon (W/L)"
+              v={`${r.byTendance.drag.wins}/${r.byTendance.drag.losses}`}
+            />
+            <Metric
+              k="🐉 Dragon · bilan"
+              v={`${r.byTendance.drag.net >= 0 ? '+' : ''}${fmt(r.byTendance.drag.net)}`}
+              cls={r.byTendance.drag.net >= 0 ? 'pos' : 'neg'}
+            />
+            <Metric k="Égalités (push)" v={`${r.pushes}`} />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="coach-label" style={{ marginTop: 14 }}>DÉTAIL PAR ÉTAPE</div>
+          <div className="bt-grid">
+            <Metric k="🟢 Victoires étape 1" v={`${r.winsByStage[0]}`} />
+            <Metric k="🟢 Victoires étape 2" v={`${r.winsByStage[1]}`} />
+            <Metric k="🟢 Victoires étape 3" v={`${r.winsByStage[2]}`} />
+            <Metric k="🟢 Victoires étape 4" v={`${r.winsByStage[3]}`} />
+            <Metric k="🩸 Pertes étape 4" v={`${r.busts}`} cls={r.busts ? 'neg' : ''} accent />
+            <Metric k="Égalités (push)" v={`${r.pushes}`} />
+            {r.vengeanceCycles > 0 && <Metric k="🔥 Cycles vengeance" v={`${r.vengeanceCycles}`} />}
+          </div>
+        </>
+      )}
 
       {r.busted && (
         <div className="risk" style={{ marginTop: 10 }}>
