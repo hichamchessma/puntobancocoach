@@ -5,15 +5,26 @@ import {
   type HichamOpts,
   type HichamReport,
 } from '../engine/hichamStrat';
+import { simulateStratTendance, simulateTendanceMany, type TendanceOpts } from '../engine/stratTendance';
 import { useMoney } from '../state/currency';
 import type { CoachConfig } from '../engine/types';
+
+type StratType = 'banker' | 'tendance';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 export function SimulationView({ config }: { config: CoachConfig }) {
   const fmt = useMoney();
   const b = config.baseUnit;
+  const [stratType, setStratType] = useState<StratType>('banker');
   const [stakes, setStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
+  // stratTendance
+  const [zigzag, setZigzag] = useState(true);
+  const [zigStakes, setZigStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
+  const [dragon, setDragon] = useState(true);
+  const [dragStakes, setDragStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
+  const setZig = (i: number, v: number) => setZigStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
+  const setDrag = (i: number, v: number) => setDragStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
   const [hands, setHands] = useState(1000);
   const [bankroll, setBankroll] = useState(config.stack);
   const [shoeLimited, setShoeLimited] = useState(true);
@@ -33,38 +44,67 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const setVenStake = (i: number, v: number) =>
     setVenStakes((s) => s.map((x, j) => (j === i ? Math.max(0, v) : x)));
 
-  const opts: HichamOpts = {
-    stakes: stakes.map((s) => Math.max(0, s)),
+  const common = {
     hands: Math.max(1, hands),
     bankroll: Math.max(1, bankroll),
     shoeHands: shoeLimited ? Math.max(10, shoeHands) : 0,
+  };
+  const opts: HichamOpts = {
+    ...common,
+    stakes: stakes.map((s) => Math.max(0, s)),
     vengeance,
     vengeanceStakes: venStakes.map((s) => Math.max(0, s)),
     vengeanceTimes: Math.max(1, venTimes),
   };
+  const tendanceOpts: TendanceOpts = {
+    ...common,
+    zigzag,
+    zigzagStakes: zigStakes.map((s) => Math.max(0, s)),
+    dragon,
+    dragonStakes: dragStakes.map((s) => Math.max(0, s)),
+  };
 
   const run = () => {
+    const one = stratType === 'banker' ? simulateHichamStrat(opts) : simulateStratTendance(tendanceOpts);
+    const many = () =>
+      stratType === 'banker'
+        ? simulateHichamMany(opts, Math.min(runs, 500))
+        : simulateTendanceMany(tendanceOpts, Math.min(runs, 500));
     if (runs <= 1) {
       setMulti(null);
-      setSingle(simulateHichamStrat(opts));
+      setSingle(one);
     } else {
       setSingle(null);
-      setMulti(simulateHichamMany(opts, Math.min(runs, 500)));
+      setMulti(many());
     }
   };
+
+  const baseUnit = stratType === 'banker' ? opts.stakes[0] || 1 : zigStakes[0] || 1;
 
   return (
     <div className="col">
       <div className="panel">
         <h2>
-          Simulation <span className="sub">· stratégie « hichamostratforbanker »</span>
+          Simulation <span className="sub">· teste une stratégie sur N coups</span>
         </h2>
+
+        <div className="seg-toggle" style={{ marginBottom: 12 }}>
+          <button className={stratType === 'banker' ? 'active' : ''} onClick={() => { setStratType('banker'); setSingle(null); setMulti(null); }}>
+            hichamostratforbanker
+          </button>
+          <button className={stratType === 'tendance' ? 'active' : ''} onClick={() => { setStratType('tendance'); setSingle(null); setMulti(null); }}>
+            stratTendance
+          </button>
+        </div>
+
         <p className="coach-text" style={{ marginTop: 0 }}>
-          Simule TA stratégie (signal = nouvelle répétition, Banquier en 4 étapes avec pause après
-          l'étape 2). Choisis <strong>la mise de chaque étape</strong>, le nombre de coups et la
-          bankroll, puis regarde le bilan.
+          {stratType === 'banker'
+            ? 'Signal = nouvelle répétition, Banquier en 4 étapes avec pause après l’étape 2. Choisis la mise de chaque étape.'
+            : 'Suit la tendance : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Chaque style a ses 4 mises.'}
         </p>
 
+        {stratType === 'banker' && (
+          <>
         <div className="coach-label" style={{ marginBottom: 8 }}>MISE PAR ÉTAPE (Banquier)</div>
         <div className="stakes-row">
           {stakes.map((s, i) => (
@@ -101,6 +141,46 @@ export function SimulationView({ config }: { config: CoachConfig }) {
             </div>
           </div>
         </div>
+          </>
+        )}
+
+        {stratType === 'tendance' && (
+          <>
+            <div className={`venge-box ${zigzag ? 'on-zig' : ''}`}>
+              <div className="venge-head">
+                <label className="toggle" style={{ color: 'var(--text)' }}>
+                  <input type="checkbox" checked={zigzag} onChange={() => setZigzag((v) => !v)} />
+                  🏓 <strong>Tendance Zigzag</strong> — dès un changement, on parie l'alternance
+                </label>
+              </div>
+              <div className="stakes-row" style={{ opacity: zigzag ? 1 : 0.45 }}>
+                {zigStakes.map((s, i) => (
+                  <div key={i} className="stake-field">
+                    <span className={`stake-idx st${i + 1}`}>Zig {i + 1}</span>
+                    <input type="number" min={0} step={10} value={s} disabled={!zigzag} onChange={(e) => setZig(i, Number(e.target.value))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`venge-box ${dragon ? 'on-drag' : ''}`} style={{ marginTop: 12 }}>
+              <div className="venge-head">
+                <label className="toggle" style={{ color: 'var(--text)' }}>
+                  <input type="checkbox" checked={dragon} onChange={() => setDragon((v) => !v)} />
+                  🐉 <strong>Tendance Dragon</strong> — dès un doublement, on parie la série
+                </label>
+              </div>
+              <div className="stakes-row" style={{ opacity: dragon ? 1 : 0.45 }}>
+                {dragStakes.map((s, i) => (
+                  <div key={i} className="stake-field">
+                    <span className={`stake-idx drag st${i + 1}`}>Drag {i + 1}</span>
+                    <input type="number" min={0} step={10} value={s} disabled={!dragon} onChange={(e) => setDrag(i, Number(e.target.value))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="stat-row" style={{ marginTop: 12 }}>
           <div className="field">
@@ -146,7 +226,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           </button>
         </div>
 
-        {single && <SingleReport r={single} fmt={fmt} unit={opts.stakes[0] || 1} />}
+        {single && <SingleReport r={single} fmt={fmt} unit={baseUnit} />}
         {multi && <MultiReport reports={multi} fmt={fmt} />}
         {!single && !multi && (
           <div className="empty-note">Règle les paramètres et lance la simulation.</div>

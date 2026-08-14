@@ -988,3 +988,11 @@ body {
 .asp-amount { font-size: 24px; font-weight: 900; color: var(--gold); }
 .asp-stage { color: var(--text-dim); font-size: 12px; }
 .asp-wait { color: var(--text-dim); font-weight: 700; }
+
+/* ===== stratTendance ===== */
+.venge-box.on-zig { border-color: var(--player); box-shadow: 0 0 0 1px rgba(74,144,255,0.3), 0 0 18px rgba(74,144,255,0.12); }
+.venge-box.on-drag { border-color: var(--banker); box-shadow: 0 0 0 1px rgba(239,74,85,0.3), 0 0 18px rgba(239,74,85,0.12); }
+.stake-idx.drag.st1 { background: #ffc2c2; }
+.stake-idx.drag.st2 { background: #ff8f8f; }
+.stake-idx.drag.st3 { background: #f76b6b; }
+.stake-idx.drag.st4 { background: #e0414b; color: #fff; }
