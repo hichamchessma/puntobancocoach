@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { AdvicePanel } from './components/AdvicePanel';
 import { AutoStratModal } from './components/AutoStratModal';
+import { AutoTendanceModal } from './components/AutoTendanceModal';
 import { BacktestView } from './components/BacktestView';
 import { CasinoBet } from './components/CasinoBet';
 import { CoachOverlay } from './components/CoachOverlay';
@@ -11,7 +12,7 @@ import type { ToastData } from './components/ResultToast';
 import type { Side } from './engine/types';
 import { explainDerivedRoad } from './engine/analysis';
 import type { DerivedKey } from './engine/roads';
-import { nextStrategyBet } from './engine/strategy';
+import { nextStrategyBet, nextTendanceBet } from './engine/strategy';
 import { Roads } from './components/Roads';
 import { SessionStats } from './components/SessionStats';
 import { SettingsModal } from './components/SettingsModal';
@@ -61,6 +62,7 @@ export default function App() {
   const [roadLetters, setRoadLetters] = useState(false);
   const [showStrat, setShowStrat] = useState(true);
   const [showStratSetup, setShowStratSetup] = useState(false);
+  const [showTendSetup, setShowTendSetup] = useState(false);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
@@ -90,8 +92,9 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, pendingBet, autoStrat, config, stack, startStack, hands } = state;
+  const { mode, betMode, pendingBet, autoStrat, autoTendance, config, stack, startStack, hands } = state;
   const stratBet = autoStrat ? nextStrategyBet(outcomes, autoStrat) : null;
+  const tendBet = autoTendance ? nextTendanceBet(outcomes, autoTendance) : null;
 
   const order = dealSlots(lastHand);
   const total = order.length;
@@ -418,6 +421,38 @@ export default function App() {
                       <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
                     )}
                   </div>
+                ) : autoTendance ? (
+                  <div className="auto-strat-panel">
+                    <div className="asp-head">
+                      <span className="asp-title">🐉 STRAT TENDANCE ACTIVE</span>
+                      <div className="btn-row">
+                        <button className="btn" onClick={() => setShowTendSetup(true)}>⚙ Régler</button>
+                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_TENDANCE', cfg: null })}>
+                          ⏹ Désactiver
+                        </button>
+                      </div>
+                    </div>
+                    <div className="asp-bet">
+                      {tendBet ? (
+                        <>
+                          <span className={`asp-chip ${tendBet.side === 'P' ? 'p' : 'b'}`}>
+                            {tendBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
+                          </span>
+                          <span className="asp-amount">{formatMoney(tendBet.amount, config.currency)}</span>
+                          <span className="asp-stage">{tendBet.tendance === 'zig' ? '🏓 zigzag' : '🐉 dragon'}</span>
+                        </>
+                      ) : (
+                        <span className="asp-wait">⏳ Pas de tendance active — aucune mise ce coup</span>
+                      )}
+                    </div>
+                    {mode === 'sim' ? (
+                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
+                        🂠 DISTRIBUER <span className="kbd">Espace</span>
+                      </button>
+                    ) : (
+                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
+                    )}
+                  </div>
                 ) : (
                   <CasinoBet
                     betMode={betMode}
@@ -485,9 +520,16 @@ export default function App() {
                     <button
                       className={`btn ${autoStrat ? 'strat-on' : ''}`}
                       onClick={() => setShowStratSetup(true)}
-                      title="Le coach joue ma stratégie automatiquement, coup par coup"
+                      title="Le coach joue hichamostratforbanker automatiquement, coup par coup"
                     >
                       🤖 {autoStrat ? 'Auto ON' : 'Auto-strat'}
+                    </button>
+                    <button
+                      className={`btn ${autoTendance ? 'strat-on' : ''}`}
+                      onClick={() => setShowTendSetup(true)}
+                      title="Le coach joue stratTendance (mise à plat) automatiquement"
+                    >
+                      🐉 {autoTendance ? 'Tend. ON' : 'Tendance'}
                     </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help
@@ -577,6 +619,17 @@ export default function App() {
               setShowStratSetup(false);
             }}
             onClose={() => setShowStratSetup(false)}
+          />
+        )}
+        {showTendSetup && (
+          <AutoTendanceModal
+            baseUnit={config.baseUnit}
+            current={autoTendance}
+            onApply={(cfg) => {
+              dispatch({ type: 'SET_AUTO_TENDANCE', cfg });
+              setShowTendSetup(false);
+            }}
+            onClose={() => setShowTendSetup(false)}
           />
         )}
       </div>

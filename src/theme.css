@@ -998,3 +998,5 @@ body {
 .stake-idx.drag.st4 { background: #e0414b; color: #fff; }
 .tend-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 700px) { .tend-row { grid-template-columns: 1fr; } }
+.asp-chip.p { background: var(--player-soft); color: #dbe7ff; }
+.asp-chip.b { background: var(--banker-soft); color: #ffdede; }

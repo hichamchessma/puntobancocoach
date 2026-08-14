@@ -15,8 +15,47 @@
 // On renvoie, par index de résultat (hors égalités = index de cellule Big Road),
 // les points de victoire et la perte finale (étape 4).
 
-import { withoutTies } from './patterns';
-import type { Outcome } from './types';
+import { opposite, withoutTies } from './patterns';
+import type { Outcome, Side } from './types';
+
+// Config d'auto-jeu de stratTendance (mise à plat, suivre la tendance)
+export interface AutoTendanceCfg {
+  zigzag: boolean;
+  zigzagBet: number;
+  dragon: boolean;
+  dragonBet: number;
+}
+
+/**
+ * Rejoue stratTendance sur l'historique et renvoie la mise à placer au PROCHAIN
+ * coup (mise à plat, on suit la tendance jusqu'à ce qu'elle casse). null = aucune.
+ */
+export function nextTendanceBet(
+  outcomes: Outcome[],
+  cfg: AutoTendanceCfg,
+): { side: Side; amount: number; tendance: 'zig' | 'drag' } | null {
+  const seq = withoutTies(outcomes);
+  let armed: { tendance: 'zig' | 'drag'; side: Side } | null = null;
+  const sideFor = (t: 'zig' | 'drag', last: Side): Side => (t === 'zig' ? opposite(last) : last);
+
+  for (let i = 0; i < seq.length; i++) {
+    if (armed) {
+      if (seq[i] === armed.side) armed = { tendance: armed.tendance, side: sideFor(armed.tendance, seq[i]) };
+      else armed = null;
+    }
+    if (!armed && i >= 1) {
+      if (cfg.zigzag && seq[i] !== seq[i - 1]) armed = { tendance: 'zig', side: opposite(seq[i]) };
+      else if (cfg.dragon && seq[i] === seq[i - 1] && (i < 2 || seq[i - 2] !== seq[i - 1]))
+        armed = { tendance: 'drag', side: seq[i] };
+    }
+  }
+
+  if (armed) {
+    const amount = armed.tendance === 'zig' ? cfg.zigzagBet : cfg.dragonBet;
+    return { side: armed.side, amount, tendance: armed.tendance };
+  }
+  return null;
+}
 
 // win = vert · loss = orange (étapes 1/2/3) · loss4 = noir (perte finale des 4)
 export type StratMark = { kind: 'win' | 'loss' | 'loss4'; stage: number };

@@ -11,7 +11,7 @@ import {
   nextProgression,
   resolveBet,
 } from '../engine/coach';
-import { nextStrategyBet, type AutoStratCfg } from '../engine/strategy';
+import { nextStrategyBet, nextTendanceBet, type AutoStratCfg, type AutoTendanceCfg } from '../engine/strategy';
 import type {
   Advice,
   Bet,
@@ -43,7 +43,8 @@ export interface SessionState {
   mode: Mode;
   betMode: BetMode;
   pendingBet: PendingBet | null;
-  autoStrat: AutoStratCfg | null; // auto-jeu de la stratégie (mise coup par coup)
+  autoStrat: AutoStratCfg | null; // auto-jeu de hichamostratforbanker (coup par coup)
+  autoTendance: AutoTendanceCfg | null; // auto-jeu de stratTendance (coup par coup)
   past: Omit<SessionState, 'past'>[]; // pour undo
 }
 
@@ -60,6 +61,7 @@ export function createInitialState(config: CoachConfig = DEFAULT_CONFIG): Sessio
     betMode: 'manual',
     pendingBet: null,
     autoStrat: null,
+    autoTendance: null,
     past: [],
   };
 }
@@ -71,6 +73,7 @@ export type Action =
   | { type: 'SET_BET_MODE'; betMode: BetMode }
   | { type: 'SET_PENDING_BET'; bet: PendingBet | null }
   | { type: 'SET_AUTO_STRAT'; cfg: AutoStratCfg | null }
+  | { type: 'SET_AUTO_TENDANCE'; cfg: AutoTendanceCfg | null }
   | { type: 'SET_CONFIG'; patch: Partial<CoachConfig> }
   | { type: 'NEW_SHOE' } // nouveau sabot : remet la road à zéro (garde stack)
   | { type: 'RESET_SESSION' } // tout remettre à zéro
@@ -106,6 +109,9 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
   if (state.autoStrat) {
     const b = nextStrategyBet(outcomes, state.autoStrat); // mise de la stratégie pour ce coup
     if (b && b.amount > 0) chosen = { side: 'B', amount: b.amount, stage: b.stage };
+  } else if (state.autoTendance) {
+    const b = nextTendanceBet(outcomes, state.autoTendance); // mise à plat de la tendance
+    if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };
   } else if (state.betMode === 'coach') {
     if (advice.action === 'bet' && advice.side && advice.amount > 0)
       chosen = { side: advice.side, amount: advice.amount, stage: advice.stage };
@@ -200,7 +206,10 @@ export function reducer(state: SessionState, action: Action): SessionState {
       return { ...state, pendingBet: action.bet };
 
     case 'SET_AUTO_STRAT':
-      return { ...state, autoStrat: action.cfg, pendingBet: null };
+      return { ...state, autoStrat: action.cfg, autoTendance: null, pendingBet: null };
+
+    case 'SET_AUTO_TENDANCE':
+      return { ...state, autoTendance: action.cfg, autoStrat: null, pendingBet: null };
 
     case 'SET_CONFIG': {
       const config = { ...state.config, ...action.patch };
