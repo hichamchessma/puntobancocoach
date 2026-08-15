@@ -26,6 +26,8 @@ export interface TendanceOpts {
   hands: number;
   bankroll: number;
   shoeHands: number; // 0 = infini
+  stopLoss?: number; // arrêt si la perte atteint ce montant (0 = off)
+  takeProfit?: number; // arrêt si le gain atteint ce montant (0 = off)
 }
 
 type Tend = 'zig' | 'drag';
@@ -53,6 +55,16 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
   const equity: number[] = [];
   let busted = false;
   let bustedAtHand: number | null = null;
+  let bestBet = 0;
+  let worstBet = 0;
+  let curW = 0;
+  let curL = 0;
+  let maxWinStreak = 0;
+  let maxLoseStreak = 0;
+  let stoppedBy: 'tp' | 'sl' | null = null;
+  let played = opts.hands;
+  const stopLoss = opts.stopLoss ?? 0;
+  const takeProfit = opts.takeProfit ?? 0;
   const byT: Record<Tend, { bets: number; wins: number; losses: number; net: number }> = {
     zig: { bets: 0, wins: 0, losses: 0, net: 0 },
     drag: { bets: 0, wins: 0, losses: 0, net: 0 },
@@ -101,15 +113,23 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
       net += payout;
       staked += amount;
       bets++;
+      bestBet = Math.max(bestBet, payout);
+      worstBet = Math.min(worstBet, payout);
       byT[t].bets++;
       byT[t].net += payout;
       if (win) {
         wins++;
         byT[t].wins++;
+        curW++;
+        curL = 0;
+        if (curW > maxWinStreak) maxWinStreak = curW;
         armed = { tendance: t, side: sideFor(t, o) }; // on continue de suivre (flat)
       } else {
         losses++;
         byT[t].losses++;
+        curL++;
+        curW = 0;
+        if (curL > maxLoseStreak) maxLoseStreak = curL;
         armed = null; // la tendance a cassé
       }
     }
@@ -132,10 +152,20 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
       busted = true;
       bustedAtHand = h + 1;
     }
+    if (takeProfit > 0 && stack - startStack >= takeProfit) {
+      stoppedBy = 'tp';
+      played = h + 1;
+      break;
+    }
+    if (stopLoss > 0 && startStack - stack >= stopLoss) {
+      stoppedBy = 'sl';
+      played = h + 1;
+      break;
+    }
   }
 
   return {
-    hands: opts.hands,
+    hands: played,
     nonTie,
     bets,
     staked,
@@ -155,6 +185,11 @@ export function simulateStratTendance(opts: TendanceOpts): HichamReport {
     bustedAtHand,
     equity,
     vengeanceCycles: 0,
+    bestBet,
+    worstBet,
+    maxWinStreak,
+    maxLoseStreak,
+    stoppedBy,
     byTendance: byT,
   };
 }

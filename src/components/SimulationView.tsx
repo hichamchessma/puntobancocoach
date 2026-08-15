@@ -38,6 +38,11 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const [shoeLimited, setShoeLimited] = useState(true);
   const [shoeHands, setShoeHands] = useState(55);
   const [runs, setRuns] = useState(1);
+  // stop-loss / take-profit (comme au trading : coupe la session dès l'objectif)
+  const [tpOn, setTpOn] = useState(false);
+  const [takeProfit, setTakeProfit] = useState(Math.max(500, Math.round(config.stack * 0.5)));
+  const [slOn, setSlOn] = useState(false);
+  const [stopLoss, setStopLoss] = useState(Math.max(500, Math.round(config.stack * 0.5)));
 
   // Vengeance
   const [vengeance, setVengeance] = useState(false);
@@ -56,6 +61,8 @@ export function SimulationView({ config }: { config: CoachConfig }) {
     hands: Math.max(1, hands),
     bankroll: Math.max(1, bankroll),
     shoeHands: shoeLimited ? Math.max(10, shoeHands) : 0,
+    stopLoss: slOn ? Math.max(1, stopLoss) : 0,
+    takeProfit: tpOn ? Math.max(1, takeProfit) : 0,
   };
   const opts: HichamOpts = {
     ...common,
@@ -234,6 +241,31 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           </div>
         </div>
 
+        <div className="tend-row" style={{ marginTop: 12 }}>
+          <div className={`venge-box ${tpOn ? 'on-drag' : ''}`}>
+            <label className="toggle" style={{ color: 'var(--text)' }}>
+              <input type="checkbox" checked={tpOn} onChange={() => setTpOn((v) => !v)} />
+              🎯 <strong>Take-profit</strong> — on arrête si le gain atteint…
+            </label>
+            <div className="field" style={{ marginTop: 8, opacity: tpOn ? 1 : 0.45 }}>
+              <label>Objectif de gain (DH)</label>
+              <input type="number" min={0} step={100} value={takeProfit} disabled={!tpOn} onChange={(e) => setTakeProfit(Number(e.target.value))} />
+              <div className="hint">Session coupée dès +{fmt(takeProfit)} de bénéfice.</div>
+            </div>
+          </div>
+          <div className={`venge-box ${slOn ? 'on' : ''}`}>
+            <label className="toggle" style={{ color: 'var(--text)' }}>
+              <input type="checkbox" checked={slOn} onChange={() => setSlOn((v) => !v)} />
+              🛑 <strong>Stop-loss</strong> — on arrête si la perte atteint…
+            </label>
+            <div className="field" style={{ marginTop: 8, opacity: slOn ? 1 : 0.45 }}>
+              <label>Perte max (DH)</label>
+              <input type="number" min={0} step={100} value={stopLoss} disabled={!slOn} onChange={(e) => setStopLoss(Number(e.target.value))} />
+              <div className="hint">Session coupée dès -{fmt(stopLoss)} de perte.</div>
+            </div>
+          </div>
+        </div>
+
         <div className="btn-row" style={{ marginTop: 8 }}>
           <button className="btn gold big" onClick={run} style={{ maxWidth: 280 }}>
             ▶ Lancer la simulation
@@ -253,8 +285,19 @@ export function SimulationView({ config }: { config: CoachConfig }) {
 function SingleReport({ r, fmt, unit }: { r: HichamReport; fmt: (n: number) => string; unit: number }) {
   const netCls = r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : '';
   const winRate = r.wins + r.losses ? r.wins / (r.wins + r.losses) : 0;
+  const peakProfit = r.maxStack - r.startStack;
+  const troughLoss = r.startStack - r.minStack;
+  const timeInProfit = r.equity.length ? r.equity.filter((v) => v >= r.startStack).length / r.equity.length : 0;
+  const avgPerBet = r.bets ? r.net / r.bets : 0;
   return (
     <div style={{ marginTop: 14 }}>
+      {r.stoppedBy && (
+        <div className={r.stoppedBy === 'tp' ? 'tp-banner' : 'sl-banner'} style={{ marginBottom: 10 }}>
+          {r.stoppedBy === 'tp'
+            ? `🎯 Take-profit atteint — session arrêtée au coup #${r.hands} (objectif touché avant la fin).`
+            : `🛑 Stop-loss atteint — session arrêtée au coup #${r.hands} (perte max touchée avant la fin).`}
+        </div>
+      )}
       <div className="bt-grid">
         <Metric k="Bilan" v={`${r.net >= 0 ? '+' : ''}${fmt(r.net)}`} cls={netCls} accent />
         <Metric k="En unités" v={`${r.net >= 0 ? '+' : ''}${(r.net / unit).toFixed(1)} u`} cls={netCls} />
@@ -264,6 +307,19 @@ function SingleReport({ r, fmt, unit }: { r: HichamReport; fmt: (n: number) => s
         <Metric k="Mises placées" v={`${r.bets}`} />
         <Metric k="Paris gagnés" v={`${r.wins}/${r.wins + r.losses} (${pct(winRate)})`} />
         <Metric k="Plus bas / drawdown" v={`${fmt(r.minStack)} / -${fmt(r.maxDrawdown)}`} />
+      </div>
+
+      <div className="coach-label" style={{ marginTop: 14 }}>STATS DÉTAILLÉES (pour décider)</div>
+      <div className="bt-grid">
+        <Metric k="📈 Plus haut atteint" v={fmt(r.maxStack)} cls="pos" accent />
+        <Metric k="🚀 Gain max en cours" v={`+${fmt(peakProfit)}`} cls="pos" />
+        <Metric k="📉 Perte max en cours" v={`-${fmt(troughLoss)}`} cls={troughLoss > 0 ? 'neg' : ''} />
+        <Metric k="🟢 Meilleure mise" v={`+${fmt(r.bestBet)}`} cls="pos" />
+        <Metric k="🔴 Pire mise" v={fmt(r.worstBet)} cls={r.worstBet < 0 ? 'neg' : ''} />
+        <Metric k="🔥 + longue série gagnante" v={`${r.maxWinStreak}`} />
+        <Metric k="🩸 + longue série perdante" v={`${r.maxLoseStreak}`} cls={r.maxLoseStreak >= 5 ? 'neg' : ''} />
+        <Metric k="⏱️ Temps en positif" v={pct(timeInProfit)} cls={timeInProfit >= 0.5 ? 'pos' : ''} />
+        <Metric k="Gain moyen / mise" v={`${avgPerBet >= 0 ? '+' : ''}${fmt(avgPerBet)}`} cls={avgPerBet >= 0 ? 'pos' : 'neg'} />
       </div>
 
       {r.byTendance ? (
@@ -325,6 +381,12 @@ function MultiReport({ reports, fmt }: { reports: HichamReport[]; fmt: (n: numbe
   const busts = reports.filter((r) => r.busted).length;
   const best = Math.max(...reports.map((r) => r.net));
   const worst = Math.min(...reports.map((r) => r.net));
+  const tpHit = reports.filter((r) => r.stoppedBy === 'tp').length;
+  const slHit = reports.filter((r) => r.stoppedBy === 'sl').length;
+  const anyStop = tpHit + slHit > 0;
+  const avgPeak = avg((r) => r.maxStack - r.startStack);
+  const avgDD = avg((r) => r.maxDrawdown);
+  const avgLoseStreak = avg((r) => r.maxLoseStreak);
   return (
     <div style={{ marginTop: 14 }}>
       <div className="muted" style={{ marginBottom: 10 }}>
@@ -332,10 +394,15 @@ function MultiReport({ reports, fmt }: { reports: HichamReport[]; fmt: (n: numbe
       </div>
       <div className="bt-grid">
         <Metric k="Bilan moyen" v={`${avgNet >= 0 ? '+' : ''}${fmt(avgNet)}`} cls={avgNet >= 0 ? 'pos' : 'neg'} accent />
-        <Metric k="Sessions gagnantes" v={`${pos}/${n} (${pct(pos / n)})`} />
+        <Metric k="Sessions gagnantes" v={`${pos}/${n} (${pct(pos / n)})`} cls={pos / n >= 0.5 ? 'pos' : ''} />
         <Metric k="Sessions ruinées" v={`${busts}/${n} (${pct(busts / n)})`} cls={busts ? 'neg' : ''} />
         <Metric k="Meilleure" v={`+${fmt(best)}`} cls="pos" />
         <Metric k="Pire" v={fmt(worst)} cls="neg" />
+        <Metric k="🚀 Pic moyen" v={`+${fmt(avgPeak)}`} cls="pos" />
+        <Metric k="📉 Drawdown moyen" v={`-${fmt(avgDD)}`} />
+        <Metric k="🩸 Série perdante moy." v={avgLoseStreak.toFixed(1)} />
+        {anyStop && <Metric k="🎯 Take-profit touché" v={`${tpHit}/${n} (${pct(tpHit / n)})`} cls={tpHit ? 'pos' : ''} />}
+        {anyStop && <Metric k="🛑 Stop-loss touché" v={`${slHit}/${n} (${pct(slHit / n)})`} cls={slHit ? 'neg' : ''} />}
       </div>
       <div className="muted" style={{ marginTop: 12, fontSize: 12 }}>
         ⚠️ Sur le long terme, le bilan moyen tend vers le négatif (avantage maison). La stratégie

@@ -17,6 +17,8 @@ export interface HichamOpts {
   hands: number; // nb de coups à simuler
   bankroll: number; // stack de départ
   shoeHands: number; // coups par sabot (0 = infini)
+  stopLoss?: number; // arrêt si la perte atteint ce montant (0 = off)
+  takeProfit?: number; // arrêt si le gain atteint ce montant (0 = off)
   vengeance?: boolean; // après une perte étape 4, on passe en mode vengeance
   vengeanceStakes?: number[]; // mises de vengeance par étape [é1, é2, é3, é4]
   vengeanceTimes?: number; // nb de cycles (progressions) où la vengeance reste active
@@ -43,6 +45,11 @@ export interface HichamReport {
   bustedAtHand: number | null;
   equity: number[];
   vengeanceCycles: number; // nb de progressions jouées en mode vengeance
+  bestBet: number; // meilleur gain sur une seule mise
+  worstBet: number; // pire perte sur une seule mise
+  maxWinStreak: number; // plus longue série de paris gagnés
+  maxLoseStreak: number; // plus longue série de paris perdus
+  stoppedBy: 'tp' | 'sl' | null; // arrêt anticipé (take-profit / stop-loss)
   byTendance?: {
     zig: { bets: number; wins: number; losses: number; net: number };
     drag: { bets: number; wins: number; losses: number; net: number };
@@ -77,6 +84,16 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
   const equity: number[] = [];
   let busted = false;
   let bustedAtHand: number | null = null;
+  let bestBet = 0;
+  let worstBet = 0;
+  let curW = 0;
+  let curL = 0;
+  let maxWinStreak = 0;
+  let maxLoseStreak = 0;
+  let stoppedBy: 'tp' | 'sl' | null = null;
+  let played = opts.hands;
+  const stopLoss = opts.stopLoss ?? 0;
+  const takeProfit = opts.takeProfit ?? 0;
 
   // Vengeance : après une perte étape 4, on utilise les mises de vengeance pour
   // les `vengeanceTimes` prochains cycles (progressions), puis retour à la normale.
@@ -144,13 +161,21 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
       net += payout;
       staked += amount;
       bets++;
+      bestBet = Math.max(bestBet, payout);
+      worstBet = Math.min(worstBet, payout);
       if (win) {
         wins++;
         winsByStage[stage - 1]++;
+        curW++;
+        curL = 0;
+        if (curW > maxWinStreak) maxWinStreak = curW;
         state = 'WATCH_1';
         endCycle(true);
       } else {
         losses++;
+        curL++;
+        curW = 0;
+        if (curL > maxLoseStreak) maxLoseStreak = curL;
         if (state === 'R1') state = 'R2';
         else if (state === 'R2') state = 'WATCH_3';
         else if (state === 'R3') state = 'R4';
@@ -186,10 +211,20 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
       busted = true;
       bustedAtHand = h + 1;
     }
+    if (takeProfit > 0 && stack - startStack >= takeProfit) {
+      stoppedBy = 'tp';
+      played = h + 1;
+      break;
+    }
+    if (stopLoss > 0 && startStack - stack >= stopLoss) {
+      stoppedBy = 'sl';
+      played = h + 1;
+      break;
+    }
   }
 
   return {
-    hands: opts.hands,
+    hands: played,
     nonTie,
     bets,
     staked,
@@ -209,6 +244,11 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
     bustedAtHand,
     equity,
     vengeanceCycles,
+    bestBet,
+    worstBet,
+    maxWinStreak,
+    maxLoseStreak,
+    stoppedBy,
   };
 }
 
