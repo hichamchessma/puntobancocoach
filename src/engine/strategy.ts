@@ -82,6 +82,7 @@ export type StratMark = { kind: 'win' | 'loss' | 'loss4'; stage: number };
 
 // Config d'auto-jeu de la stratégie (mises par étape + vengeance)
 export interface AutoStratCfg {
+  side: Side; // côté misé sur le signal : 'P' (Joueur, défaut) ou 'B' (Banquier)
   stakes: number[]; // [é1, é2, é3, é4]
   vengeance: boolean;
   vengeanceStakes: number[];
@@ -116,7 +117,7 @@ export function nextStrategyBet(
     let resolved = false;
     if (state === 'R1' || state === 'R2' || state === 'R3' || state === 'R4') {
       resolved = true;
-      if (seq[i] === 'B') {
+      if (seq[i] === cfg.side) {
         state = 'WATCH_1';
         endCycle(true);
       } else if (state === 'R1') state = 'R2';

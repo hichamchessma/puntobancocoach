@@ -116,7 +116,7 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
   let chosen: { side: Side; amount: number; stage: number } | null = null;
   if (state.autoStrat) {
     const b = nextStrategyBet(outcomes, state.autoStrat); // mise de la stratégie pour ce coup
-    if (b && b.amount > 0) chosen = { side: 'B', amount: b.amount, stage: b.stage };
+    if (b && b.amount > 0) chosen = { side: state.autoStrat.side, amount: b.amount, stage: b.stage };
   } else if (state.autoTendance) {
     const b = nextTendanceBet(outcomes, state.autoTendance); // mise à plat de la tendance
     if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };

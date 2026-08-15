@@ -413,7 +413,9 @@ export default function App() {
                     <div className="asp-bet">
                       {stratBet ? (
                         <>
-                          <span className="asp-chip">🔴 BANQUIER</span>
+                          <span className={`asp-chip ${autoStrat.side === 'P' ? 'p' : 'b'}`}>
+                            {autoStrat.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
+                          </span>
                           <span className="asp-amount">{formatMoney(stratBet.amount, config.currency)}</span>
                           <span className="asp-stage">étape {stratBet.stage}</span>
                         </>

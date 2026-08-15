@@ -15,6 +15,7 @@ export function AutoStratModal({
 }) {
   const fmt = useMoney();
   const b = baseUnit;
+  const [side, setSide] = useState(current?.side ?? 'P');
   const [stakes, setStakes] = useState<number[]>(current?.stakes ?? [b, b * 2, b * 4, b * 8]);
   const [vengeance, setVengeance] = useState(current?.vengeance ?? false);
   const [venStakes, setVenStakes] = useState<number[]>(
@@ -29,6 +30,7 @@ export function AutoStratModal({
 
   const apply = () =>
     onApply({
+      side,
       stakes: stakes.map((s) => Math.max(0, s)),
       vengeance,
       vengeanceStakes: venStakes.map((s) => Math.max(0, s)),
@@ -43,11 +45,21 @@ export function AutoStratModal({
           <button className="btn" onClick={onClose}>Fermer</button>
         </div>
         <p className="coach-text" style={{ marginTop: 0 }}>
-          Le coach placera automatiquement la mise de TA stratégie coup par coup (Banquier sur
-          signal, 0 sinon). Règle les montants puis valide.
+          Le coach placera automatiquement la mise de TA stratégie coup par coup (sur le côté choisi
+          au signal, 0 sinon). Choisis le côté, règle les montants, puis valide.
         </p>
 
-        <div className="coach-label" style={{ marginBottom: 8 }}>MISE PAR ÉTAPE (Banquier)</div>
+        <div className="coach-label" style={{ marginBottom: 8 }}>CÔTÉ MISÉ</div>
+        <div className="seg-toggle" style={{ marginBottom: 14 }}>
+          <button className={side === 'P' ? 'active' : ''} onClick={() => setSide('P')}>
+            🔵 Joueur <span className="muted" style={{ fontSize: 11 }}>· payé plein</span>
+          </button>
+          <button className={side === 'B' ? 'active' : ''} onClick={() => setSide('B')}>
+            🔴 Banquier <span className="muted" style={{ fontSize: 11 }}>· 6 = moitié</span>
+          </button>
+        </div>
+
+        <div className="coach-label" style={{ marginBottom: 8 }}>MISE PAR ÉTAPE ({side === 'P' ? 'Joueur' : 'Banquier'})</div>
         <div className="stakes-row">
           {stakes.map((s, i) => (
             <div key={i} className="stake-field">

@@ -33,6 +33,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const fmt = useMoney();
   const b = config.baseUnit;
   const [stratType, setStratType] = useState<StratType>('banker');
+  const [bankerSide, setBankerSide] = useState<'P' | 'B'>('P');
   const [stakes, setStakes] = useState<number[]>([b, b * 2, b * 4, b * 8]);
   // stratTendance (mise à plat : un seul montant par tendance)
   const [zigzag, setZigzag] = useState(true);
@@ -76,6 +77,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   };
   const opts: HichamOpts = {
     ...common,
+    side: bankerSide,
     stakes: stakes.map((s) => Math.max(0, s)),
     vengeance,
     vengeanceStakes: venStakes.map((s) => Math.max(0, s)),
@@ -152,7 +154,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
 
         <p className="coach-text" style={{ marginTop: 0 }}>
           {stratType === 'banker'
-            ? 'Signal = nouvelle répétition, Banquier en 4 étapes avec pause après l’étape 2. Choisis la mise de chaque étape.'
+            ? 'Signal = nouvelle répétition, mise en 4 étapes avec pause après l’étape 2. Choisis le côté (Joueur/Banquier) et la mise de chaque étape.'
             : stratType === 'tendance'
               ? 'Suit la tendance en MISE À PLAT (aucune progression) : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Une seule mise par tendance ; on suit tant que ça tient, on s’arrête dès que ça casse.'
               : stratType === 'anti'
@@ -162,7 +164,16 @@ export function SimulationView({ config }: { config: CoachConfig }) {
 
         {stratType === 'banker' && (
           <>
-        <div className="coach-label" style={{ marginBottom: 8 }}>MISE PAR ÉTAPE (Banquier)</div>
+        <div className="coach-label" style={{ marginBottom: 8 }}>CÔTÉ MISÉ</div>
+        <div className="seg-toggle" style={{ marginBottom: 12 }}>
+          <button className={bankerSide === 'P' ? 'active' : ''} onClick={() => setBankerSide('P')}>
+            🔵 Joueur · payé plein
+          </button>
+          <button className={bankerSide === 'B' ? 'active' : ''} onClick={() => setBankerSide('B')}>
+            🔴 Banquier · 6 = moitié
+          </button>
+        </div>
+        <div className="coach-label" style={{ marginBottom: 8 }}>MISE PAR ÉTAPE ({bankerSide === 'P' ? 'Joueur' : 'Banquier'})</div>
         <div className="stakes-row">
           {stakes.map((s, i) => (
             <div key={i} className="stake-field">

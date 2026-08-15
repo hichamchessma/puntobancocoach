@@ -13,6 +13,7 @@ import { betPayout } from './coach';
 import type { Side } from './types';
 
 export interface HichamOpts {
+  side: Side; // côté misé sur le signal : 'P' (Joueur) ou 'B' (Banquier)
   stakes: number[]; // montant de mise par étape [é1, é2, é3, é4]
   hands: number; // nb de coups à simuler
   bankroll: number; // stack de départ
@@ -155,8 +156,8 @@ export function simulateHichamStrat(opts: HichamOpts): HichamReport {
       resolved = true;
       const stage = stageOf[state];
       const amount = cycleStakes[stage - 1] ?? 0;
-      const win = o === 'B';
-      const payout = betPayout('B', amount, win ? 'win' : 'lose', result.bankerValue);
+      const win = o === opts.side;
+      const payout = betPayout(opts.side, amount, win ? 'win' : 'lose', result.bankerValue);
       stack += payout;
       net += payout;
       staked += amount;
