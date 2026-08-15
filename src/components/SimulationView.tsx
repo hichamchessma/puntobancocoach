@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   simulateHichamMany,
   simulateHichamStrat,
@@ -368,7 +368,7 @@ function SingleReport({ r, fmt, unit }: { r: HichamReport; fmt: (n: number) => s
         </div>
       )}
 
-      <Equity equity={r.equity} start={r.startStack} />
+      <Equity equity={r.equity} start={r.startStack} fmt={fmt} />
     </div>
   );
 }
@@ -421,27 +421,148 @@ function Metric({ k, v, cls, gold, accent }: { k: string; v: string; cls?: strin
   );
 }
 
-function Equity({ equity, start }: { equity: number[]; start: number }) {
+function Equity({ equity, start, fmt }: { equity: number[]; start: number; fmt: (n: number) => string }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(760);
+  const [zoom, setZoom] = useState<{ lo: number; hi: number } | null>(null);
+  const [hover, setHover] = useState<number | null>(null); // index dans la fenêtre visible
+  const [sel, setSel] = useState<{ a: number; b: number } | null>(null); // px pendant le glisser
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setW(el.clientWidth || 760));
+    ro.observe(el);
+    setW(el.clientWidth || 760);
+    return () => ro.disconnect();
+  }, []);
+
   if (equity.length < 2) return null;
-  const W = 600;
-  const H = 90;
-  // échantillonne si trop de points
-  const step = Math.max(1, Math.floor(equity.length / 600));
-  const pts0 = equity.filter((_, i) => i % step === 0);
-  const min = Math.min(start, ...pts0);
-  const max = Math.max(start, ...pts0);
-  const range = max - min || 1;
-  const x = (i: number) => (i / (pts0.length - 1)) * W;
-  const y = (v: number) => H - ((v - min) / range) * H;
-  const pts = pts0.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const up = equity[equity.length - 1] >= start;
+
+  const H = 180;
+  const padL = 10;
+  const padR = 10;
+  const padT = 22;
+  const padB = 20;
+  const lo = zoom ? zoom.lo : 0;
+  const hi = zoom ? zoom.hi : equity.length - 1;
+  const view = equity.slice(lo, hi + 1);
+  const n = view.length;
+  const vmin = Math.min(start, ...view);
+  const vmax = Math.max(start, ...view);
+  const innerW = Math.max(1, w - padL - padR);
+  const innerH = H - padT - padB;
+  const xAt = (i: number) => padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+  const yAt = (v: number) => padT + (1 - (v - vmin) / (vmax - vmin || 1)) * innerH;
+  const pts = view.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+  const up = view[n - 1] >= start;
+
+  // pic (max) et creux (min) de la fenêtre visible
+  let pi = 0;
+  let ti = 0;
+  view.forEach((v, i) => {
+    if (v > view[pi]) pi = i;
+    if (v < view[ti]) ti = i;
+  });
+
+  const idxFromClient = (clientX: number) => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    const px = clientX - rect.left;
+    const frac = (px - padL) / innerW;
+    return Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1))));
+  };
+  const onMove = (e: React.MouseEvent) => {
+    const i = idxFromClient(e.clientX);
+    setHover(i);
+    if (sel) setSel({ a: sel.a, b: xAt(i) });
+  };
+  const onDown = (e: React.MouseEvent) => {
+    const i = idxFromClient(e.clientX);
+    setSel({ a: xAt(i), b: xAt(i) });
+  };
+  const onUp = (e: React.MouseEvent) => {
+    if (sel) {
+      const ia = idxFromClient(e.clientX);
+      const a0 = Math.round(((sel.a - padL) / innerW) * (n - 1));
+      const iMin = Math.max(0, Math.min(a0, ia));
+      const iMax = Math.min(n - 1, Math.max(a0, ia));
+      if (iMax - iMin >= 2) setZoom({ lo: lo + iMin, hi: lo + iMax });
+      setSel(null);
+    }
+  };
+  const leave = () => {
+    setHover(null);
+    setSel(null);
+  };
+
+  const label = (i: number, v: number, cls: string) => {
+    const lx = Math.max(padL + 26, Math.min(w - padL - 26, xAt(i)));
+    const above = yAt(v) > padT + 24;
+    return (
+      <g>
+        <circle cx={xAt(i)} cy={yAt(v)} r={3.5} className={cls} />
+        <text x={lx} y={above ? yAt(v) - 8 : yAt(v) + 15} textAnchor="middle" className={`eq-tag ${cls}`}>
+          {fmt(v)}
+        </text>
+      </g>
+    );
+  };
+
+  const hv = hover != null ? view[hover] : null;
   return (
     <div className="equity">
-      <div className="road-label" style={{ marginTop: 12 }}>ÉVOLUTION DE LA BANKROLL</div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="equity-svg">
-        <line x1="0" y1={y(start)} x2={W} y2={y(start)} stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />
-        <polyline points={pts} fill="none" stroke={up ? 'var(--tie)' : 'var(--banker)'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <div className="road-label" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+        ÉVOLUTION DE LA BANKROLL
+        <span className="eq-hint">· glisse pour zoomer · {zoom ? `coups ${lo + 1}–${hi + 1}` : 'survole pour lire'}</span>
+        {zoom && (
+          <button className="chip-btn" style={{ marginLeft: 'auto' }} onClick={() => { setZoom(null); setHover(null); }}>
+            ⤢ Réinitialiser le zoom
+          </button>
+        )}
+      </div>
+      <div className="eq-wrap" ref={wrapRef} style={{ position: 'relative' }}>
+        <svg
+          width={w}
+          height={H}
+          className="equity-svg"
+          onMouseMove={onMove}
+          onMouseDown={onDown}
+          onMouseUp={onUp}
+          onMouseLeave={leave}
+          style={{ cursor: sel ? 'ew-resize' : 'crosshair' }}
+        >
+          <line x1={padL} y1={yAt(start)} x2={w - padR} y2={yAt(start)} stroke="rgba(255,255,255,0.22)" strokeDasharray="4 4" />
+          <text x={w - padR} y={yAt(start) - 4} textAnchor="end" className="eq-base">départ {fmt(start)}</text>
+          <polyline points={pts} fill="none" stroke={up ? 'var(--tie)' : 'var(--banker)'} strokeWidth="2" />
+          {label(pi, view[pi], 'eq-peak')}
+          {view[ti] < start && label(ti, view[ti], 'eq-trough')}
+          {sel && (
+            <rect x={Math.min(sel.a, sel.b)} y={padT} width={Math.abs(sel.b - sel.a)} height={innerH} className="eq-sel" />
+          )}
+          {hover != null && hv != null && (
+            <g>
+              <line x1={xAt(hover)} y1={padT} x2={xAt(hover)} y2={H - padB} className="eq-cross" />
+              <circle cx={xAt(hover)} cy={yAt(hv)} r={4} className="eq-dot" />
+            </g>
+          )}
+        </svg>
+        {hover != null && hv != null && (
+          <div
+            className="eq-tip"
+            style={{
+              left: Math.max(4, Math.min(w - 150, xAt(hover) + 10)),
+              top: Math.max(2, yAt(hv) - 46),
+            }}
+          >
+            <div className="eq-tip-h">Coup #{lo + hover + 1}</div>
+            <div>Bankroll : <strong>{fmt(hv)}</strong></div>
+            <div className={hv - start >= 0 ? 'pos' : 'neg'}>
+              {hv - start >= 0 ? '+' : ''}{fmt(hv - start)}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
