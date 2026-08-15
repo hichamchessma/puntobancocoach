@@ -14,10 +14,18 @@ import {
   type AntiSimOpts,
 } from '../engine/antiStrat';
 import { AntiConfigEditor } from './AntiConfig';
+import {
+  defaultFourmiCfg,
+  simulateFourmi,
+  simulateFourmiMany,
+  type FourmiCfg,
+  type FourmiEntry,
+  type FourmiSimOpts,
+} from '../engine/laFourmi';
 import { useMoney } from '../state/currency';
 import type { CoachConfig } from '../engine/types';
 
-type StratType = 'banker' | 'tendance' | 'anti';
+type StratType = 'banker' | 'tendance' | 'anti' | 'fourmi';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
@@ -33,6 +41,8 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const [dragBet, setDragBet] = useState(b);
   // strat anti (contre la tendance)
   const [antiCfg, setAntiCfg] = useState<AntiCfg>(defaultAntiCfg(b));
+  // La Fourmi
+  const [fourmiCfg, setFourmiCfg] = useState<FourmiCfg>(defaultFourmiCfg(b));
   const [hands, setHands] = useState(1000);
   const [bankroll, setBankroll] = useState(config.stack);
   const [shoeLimited, setShoeLimited] = useState(true);
@@ -79,19 +89,24 @@ export function SimulationView({ config }: { config: CoachConfig }) {
     dragonBet: Math.max(0, dragBet),
   };
   const antiOpts: AntiSimOpts = { ...common, ...antiCfg };
+  const fourmiOpts: FourmiSimOpts = { ...common, ...fourmiCfg };
 
   const runOne = () =>
     stratType === 'banker'
       ? simulateHichamStrat(opts)
       : stratType === 'tendance'
         ? simulateStratTendance(tendanceOpts)
-        : simulateAntiStrat(antiOpts);
+        : stratType === 'anti'
+          ? simulateAntiStrat(antiOpts)
+          : simulateFourmi(fourmiOpts);
   const runMany = (n: number) =>
     stratType === 'banker'
       ? simulateHichamMany(opts, n)
       : stratType === 'tendance'
         ? simulateTendanceMany(tendanceOpts, n)
-        : simulateAntiMany(antiOpts, n);
+        : stratType === 'anti'
+          ? simulateAntiMany(antiOpts, n)
+          : simulateFourmiMany(fourmiOpts, n);
 
   const run = () => {
     if (runs <= 1) {
@@ -105,7 +120,13 @@ export function SimulationView({ config }: { config: CoachConfig }) {
 
   const antiUnit = antiCfg.antiZig.levelsN1[0] || antiCfg.antiZig.levelsN2[0] || b;
   const baseUnit =
-    stratType === 'banker' ? opts.stakes[0] || 1 : stratType === 'tendance' ? zigBet || dragBet || 1 : antiUnit || 1;
+    stratType === 'banker'
+      ? opts.stakes[0] || 1
+      : stratType === 'tendance'
+        ? zigBet || dragBet || 1
+        : stratType === 'anti'
+          ? antiUnit || 1
+          : fourmiCfg.unit || 1;
 
   return (
     <div className="col">
@@ -124,6 +145,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           <button className={stratType === 'anti' ? 'active' : ''} onClick={() => { setStratType('anti'); setSingle(null); setMulti(null); }}>
             stratAnti
           </button>
+          <button className={stratType === 'fourmi' ? 'active' : ''} onClick={() => { setStratType('fourmi'); setSingle(null); setMulti(null); }}>
+            🐜 La Fourmi
+          </button>
         </div>
 
         <p className="coach-text" style={{ marginTop: 0 }}>
@@ -131,7 +155,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
             ? 'Signal = nouvelle répétition, Banquier en 4 étapes avec pause après l’étape 2. Choisis la mise de chaque étape.'
             : stratType === 'tendance'
               ? 'Suit la tendance en MISE À PLAT (aucune progression) : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Une seule mise par tendance ; on suit tant que ça tient, on s’arrête dès que ça casse.'
-              : 'On parie CONTRE la tendance : anti-zigzag (le zigzag va s’arrêter -> même couleur) et/ou anti-dragon (la série casse -> couleur opposée), en paliers. Niveau 2 (doux) et/ou niveau 1 (agressif) ; les 2 = vengeance. Tous paliers perdus -> on suit la tendance à plat.'}
+              : stratType === 'anti'
+                ? 'On parie CONTRE la tendance : anti-zigzag (le zigzag va s’arrêter -> même couleur) et/ou anti-dragon (la série casse -> couleur opposée), en paliers. Niveau 2 (doux) et/ou niveau 1 (agressif) ; les 2 = vengeance. Tous paliers perdus -> on suit la tendance à plat.'
+                : 'La Fourmi : perdre le minimum, gagner le plus souvent. MISE À PLAT sur le côté à plus faible avantage maison (Joueur ~1,27 % sous la règle 6-moitié), volume réduit par un filtre d’entrée. À combiner avec un Stop-loss / Take-profit serré.'}
         </p>
 
         {stratType === 'banker' && (
@@ -202,6 +228,43 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         )}
 
         {stratType === 'anti' && <AntiConfigEditor value={antiCfg} onChange={setAntiCfg} />}
+
+        {stratType === 'fourmi' && (
+          <>
+            <div className="coach-label" style={{ marginBottom: 8 }}>CÔTÉ</div>
+            <div className="seg-toggle" style={{ marginBottom: 12 }}>
+              <button className={fourmiCfg.side === 'P' ? 'active' : ''} onClick={() => setFourmiCfg((c) => ({ ...c, side: 'P' }))}>
+                🔵 Joueur · ~1,27 %
+              </button>
+              <button className={fourmiCfg.side === 'B' ? 'active' : ''} onClick={() => setFourmiCfg((c) => ({ ...c, side: 'B' }))}>
+                🔴 Banquier · ~1,42 %
+              </button>
+            </div>
+            <div className="stat-row">
+              <div className="field">
+                <label>Mise à plat</label>
+                <input type="number" min={0} step={10} value={fourmiCfg.unit} onChange={(e) => setFourmiCfg((c) => ({ ...c, unit: Math.max(0, Number(e.target.value)) }))} />
+              </div>
+              <div className="field">
+                <label>Filtre d’entrée</label>
+                <div className="seg-toggle">
+                  {(['hache', 'noDragon', 'always'] as FourmiEntry[]).map((e) => (
+                    <button key={e} className={fourmiCfg.entry === e ? 'active' : ''} onClick={() => setFourmiCfg((c) => ({ ...c, entry: e }))}>
+                      {e === 'hache' ? '✂️ Haché' : e === 'noDragon' ? '🐉 Sauf dragon' : '♾️ Tous'}
+                    </button>
+                  ))}
+                </div>
+                <div className="hint">
+                  {fourmiCfg.entry === 'hache'
+                    ? 'Mise seulement après un changement (~la moitié des coups).'
+                    : fourmiCfg.entry === 'noDragon'
+                      ? 'Mise partout sauf pendant un run ≥ 3.'
+                      : 'Mise à chaque coup.'}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="stat-row" style={{ marginTop: 12 }}>
           <div className="field">

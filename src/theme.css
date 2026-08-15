@@ -1026,3 +1026,5 @@ body {
 .tp-banner, .sl-banner { padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; }
 .tp-banner { background: rgba(46,204,113,0.14); border: 1px solid rgba(46,204,113,0.5); color: #7ee2a8; }
 .sl-banner { background: rgba(209,0,24,0.14); border: 1px solid rgba(209,0,24,0.5); color: #ff8a9a; }
+.entry-opt { background: linear-gradient(180deg, #0f1830, #0b1120); border: 1px solid var(--panel-line); color: var(--text); }
+.entry-opt:hover { border-color: rgba(255,255,255,0.25); }

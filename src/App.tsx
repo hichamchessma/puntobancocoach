@@ -4,6 +4,8 @@ import { AutoStratModal } from './components/AutoStratModal';
 import { AutoTendanceModal } from './components/AutoTendanceModal';
 import { AntiStratModal } from './components/AntiStratModal';
 import { nextAntiBet } from './engine/antiStrat';
+import { FourmiModal } from './components/FourmiModal';
+import { nextFourmiBet } from './engine/laFourmi';
 import { BacktestView } from './components/BacktestView';
 import { CasinoBet } from './components/CasinoBet';
 import { CoachOverlay } from './components/CoachOverlay';
@@ -66,6 +68,7 @@ export default function App() {
   const [showStratSetup, setShowStratSetup] = useState(false);
   const [showTendSetup, setShowTendSetup] = useState(false);
   const [showAntiSetup, setShowAntiSetup] = useState(false);
+  const [showFourmiSetup, setShowFourmiSetup] = useState(false);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
@@ -95,10 +98,11 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, pendingBet, autoStrat, autoTendance, autoAnti, config, stack, startStack, hands } = state;
+  const { mode, betMode, pendingBet, autoStrat, autoTendance, autoAnti, autoFourmi, config, stack, startStack, hands } = state;
   const stratBet = autoStrat ? nextStrategyBet(outcomes, autoStrat) : null;
   const tendBet = autoTendance ? nextTendanceBet(outcomes, autoTendance) : null;
   const antiBet = autoAnti ? nextAntiBet(outcomes, autoAnti) : null;
+  const fourmiBet = autoFourmi ? nextFourmiBet(outcomes, autoFourmi) : null;
 
   const order = dealSlots(lastHand);
   const total = order.length;
@@ -500,6 +504,38 @@ export default function App() {
                       <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
                     )}
                   </div>
+                ) : autoFourmi ? (
+                  <div className="auto-strat-panel">
+                    <div className="asp-head">
+                      <span className="asp-title">🐜 LA FOURMI ACTIVE</span>
+                      <div className="btn-row">
+                        <button className="btn" onClick={() => setShowFourmiSetup(true)}>⚙ Régler</button>
+                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_FOURMI', cfg: null })}>
+                          ⏹ Désactiver
+                        </button>
+                      </div>
+                    </div>
+                    <div className="asp-bet">
+                      {fourmiBet ? (
+                        <>
+                          <span className={`asp-chip ${fourmiBet.side === 'P' ? 'p' : 'b'}`}>
+                            {fourmiBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
+                          </span>
+                          <span className="asp-amount">{formatMoney(fourmiBet.amount, config.currency)}</span>
+                          <span className="asp-stage">🐜 à plat</span>
+                        </>
+                      ) : (
+                        <span className="asp-wait">⏳ On attend le terrain haché — aucune mise ce coup</span>
+                      )}
+                    </div>
+                    {mode === 'sim' ? (
+                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
+                        🂠 DISTRIBUER <span className="kbd">Espace</span>
+                      </button>
+                    ) : (
+                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
+                    )}
+                  </div>
                 ) : (
                   <CasinoBet
                     betMode={betMode}
@@ -584,6 +620,13 @@ export default function App() {
                       title="Le coach joue la strat anti (contre la tendance) automatiquement"
                     >
                       ⚔️ {autoAnti ? 'Anti ON' : 'Anti'}
+                    </button>
+                    <button
+                      className={`btn ${autoFourmi ? 'strat-on' : ''}`}
+                      onClick={() => setShowFourmiSetup(true)}
+                      title="La Fourmi : mise à plat, côté à plus faible avantage maison, filtrée"
+                    >
+                      🐜 {autoFourmi ? 'Fourmi ON' : 'Fourmi'}
                     </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help
@@ -695,6 +738,17 @@ export default function App() {
               setShowAntiSetup(false);
             }}
             onClose={() => setShowAntiSetup(false)}
+          />
+        )}
+        {showFourmiSetup && (
+          <FourmiModal
+            baseUnit={config.baseUnit}
+            current={autoFourmi}
+            onApply={(cfg) => {
+              dispatch({ type: 'SET_AUTO_FOURMI', cfg });
+              setShowFourmiSetup(false);
+            }}
+            onClose={() => setShowFourmiSetup(false)}
           />
         )}
       </div>
