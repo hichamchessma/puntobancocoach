@@ -6,6 +6,8 @@ import { AntiStratModal } from './components/AntiStratModal';
 import { nextAntiBet } from './engine/antiStrat';
 import { FourmiModal } from './components/FourmiModal';
 import { nextFourmiBet } from './engine/laFourmi';
+import { ThreeStepModal } from './components/ThreeStepModal';
+import { nextThreeStepBet } from './engine/threeStep';
 import { BacktestView } from './components/BacktestView';
 import { CasinoBet } from './components/CasinoBet';
 import { CoachOverlay } from './components/CoachOverlay';
@@ -69,6 +71,7 @@ export default function App() {
   const [showTendSetup, setShowTendSetup] = useState(false);
   const [showAntiSetup, setShowAntiSetup] = useState(false);
   const [showFourmiSetup, setShowFourmiSetup] = useState(false);
+  const [showThreeStepSetup, setShowThreeStepSetup] = useState(false);
 
   // Vitesse de distribution
   const [speedMode, setSpeedMode] = useState<SpeedMode>('instant');
@@ -98,11 +101,12 @@ export default function App() {
   const outcomes = selectOutcomes(state);
   const advice = selectAdvice(state);
   const lastHand = selectLastHand(state);
-  const { mode, betMode, pendingBet, autoStrat, autoTendance, autoAnti, autoFourmi, config, stack, startStack, hands } = state;
+  const { mode, betMode, pendingBet, autoStrat, autoTendance, autoAnti, autoFourmi, autoThreeStep, config, stack, startStack, hands } = state;
   const stratBet = autoStrat ? nextStrategyBet(outcomes, autoStrat) : null;
   const tendBet = autoTendance ? nextTendanceBet(outcomes, autoTendance) : null;
   const antiBet = autoAnti ? nextAntiBet(outcomes, autoAnti) : null;
   const fourmiBet = autoFourmi ? nextFourmiBet(outcomes, autoFourmi) : null;
+  const threeBet = autoThreeStep ? nextThreeStepBet(outcomes, autoThreeStep) : null;
 
   const order = dealSlots(lastHand);
   const total = order.length;
@@ -538,6 +542,40 @@ export default function App() {
                       <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
                     )}
                   </div>
+                ) : autoThreeStep ? (
+                  <div className="auto-strat-panel">
+                    <div className="asp-head">
+                      <span className="asp-title">🎯 3 STEPS ACTIVE</span>
+                      <div className="btn-row">
+                        <button className="btn" onClick={() => setShowThreeStepSetup(true)}>⚙ Régler</button>
+                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_THREESTEP', cfg: null })}>
+                          ⏹ Désactiver
+                        </button>
+                      </div>
+                    </div>
+                    <div className="asp-bet">
+                      {threeBet ? (
+                        <>
+                          <span className={`asp-chip ${threeBet.side === 'P' ? 'p' : 'b'}`}>
+                            {threeBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
+                          </span>
+                          <span className="asp-amount">{formatMoney(threeBet.amount, config.currency)}</span>
+                          <span className="asp-stage">
+                            {threeBet.mode === 'V2' ? '🔥🔥 veng.2' : threeBet.mode === 'V1' ? '🔥 veng.1' : '🎯 base'} · palier {threeBet.step + 1}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="asp-wait">⏳ Aucune mise ce coup</span>
+                      )}
+                    </div>
+                    {mode === 'sim' ? (
+                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
+                        🂠 DISTRIBUER <span className="kbd">Espace</span>
+                      </button>
+                    ) : (
+                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
+                    )}
+                  </div>
                 ) : (
                   <CasinoBet
                     betMode={betMode}
@@ -629,6 +667,13 @@ export default function App() {
                       title="La Fourmi : mise à plat, côté à plus faible avantage maison, filtrée"
                     >
                       🐜 {autoFourmi ? 'Fourmi ON' : 'Fourmi'}
+                    </button>
+                    <button
+                      className={`btn ${autoThreeStep ? 'strat-on' : ''}`}
+                      onClick={() => setShowThreeStepSetup(true)}
+                      title="3 Steps : martingale 3 paliers + 2 niveaux de vengeance optionnels"
+                    >
+                      🎯 {autoThreeStep ? '3Steps ON' : '3 Steps'}
                     </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help
@@ -751,6 +796,17 @@ export default function App() {
               setShowFourmiSetup(false);
             }}
             onClose={() => setShowFourmiSetup(false)}
+          />
+        )}
+        {showThreeStepSetup && (
+          <ThreeStepModal
+            baseUnit={config.baseUnit}
+            current={autoThreeStep}
+            onApply={(cfg) => {
+              dispatch({ type: 'SET_AUTO_THREESTEP', cfg });
+              setShowThreeStepSetup(false);
+            }}
+            onClose={() => setShowThreeStepSetup(false)}
           />
         )}
       </div>

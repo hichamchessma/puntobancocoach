@@ -14,6 +14,7 @@ import {
 import { nextStrategyBet, nextTendanceBet, type AutoStratCfg, type AutoTendanceCfg } from '../engine/strategy';
 import { defaultAntiCfg, nextAntiBet, type AntiCfg } from '../engine/antiStrat';
 import { nextFourmiBet, type FourmiCfg } from '../engine/laFourmi';
+import { nextThreeStepBet, type ThreeStepCfg } from '../engine/threeStep';
 import type {
   Advice,
   Bet,
@@ -49,6 +50,7 @@ export interface SessionState {
   autoTendance: AutoTendanceCfg | null; // auto-jeu de stratTendance (coup par coup)
   autoAnti: AntiCfg | null; // auto-jeu de la strat "anti" (coup par coup)
   autoFourmi: FourmiCfg | null; // auto-jeu de "La Fourmi" (coup par coup)
+  autoThreeStep: ThreeStepCfg | null; // auto-jeu de "3 Steps" (coup par coup)
   past: Omit<SessionState, 'past'>[]; // pour undo
 }
 
@@ -68,6 +70,7 @@ export function createInitialState(config: CoachConfig = DEFAULT_CONFIG): Sessio
     autoTendance: null,
     autoAnti: defaultAntiCfg(config.baseUnit), // strat "anti" active par défaut au démarrage
     autoFourmi: null,
+    autoThreeStep: null,
     past: [],
   };
 }
@@ -82,6 +85,7 @@ export type Action =
   | { type: 'SET_AUTO_TENDANCE'; cfg: AutoTendanceCfg | null }
   | { type: 'SET_AUTO_ANTI'; cfg: AntiCfg | null }
   | { type: 'SET_AUTO_FOURMI'; cfg: FourmiCfg | null }
+  | { type: 'SET_AUTO_THREESTEP'; cfg: ThreeStepCfg | null }
   | { type: 'SET_CONFIG'; patch: Partial<CoachConfig> }
   | { type: 'NEW_SHOE' } // nouveau sabot : remet la road à zéro (garde stack)
   | { type: 'RESET_SESSION' } // tout remettre à zéro
@@ -125,6 +129,9 @@ function applyHand(state: SessionState, result: HandResult, hasCards: boolean): 
     if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };
   } else if (state.autoFourmi) {
     const b = nextFourmiBet(outcomes, state.autoFourmi); // La Fourmi (flat, filtré)
+    if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };
+  } else if (state.autoThreeStep) {
+    const b = nextThreeStepBet(outcomes, state.autoThreeStep); // 3 Steps
     if (b && b.amount > 0) chosen = { side: b.side, amount: b.amount, stage: 0 };
   } else if (state.betMode === 'coach') {
     if (advice.action === 'bet' && advice.side && advice.amount > 0)
@@ -220,16 +227,19 @@ export function reducer(state: SessionState, action: Action): SessionState {
       return { ...state, pendingBet: action.bet };
 
     case 'SET_AUTO_STRAT':
-      return { ...state, autoStrat: action.cfg, autoTendance: null, autoAnti: null, autoFourmi: null, pendingBet: null };
+      return { ...state, autoStrat: action.cfg, autoTendance: null, autoAnti: null, autoFourmi: null, autoThreeStep: null, pendingBet: null };
 
     case 'SET_AUTO_TENDANCE':
-      return { ...state, autoTendance: action.cfg, autoStrat: null, autoAnti: null, autoFourmi: null, pendingBet: null };
+      return { ...state, autoTendance: action.cfg, autoStrat: null, autoAnti: null, autoFourmi: null, autoThreeStep: null, pendingBet: null };
 
     case 'SET_AUTO_ANTI':
-      return { ...state, autoAnti: action.cfg, autoStrat: null, autoTendance: null, autoFourmi: null, pendingBet: null };
+      return { ...state, autoAnti: action.cfg, autoStrat: null, autoTendance: null, autoFourmi: null, autoThreeStep: null, pendingBet: null };
 
     case 'SET_AUTO_FOURMI':
-      return { ...state, autoFourmi: action.cfg, autoStrat: null, autoTendance: null, autoAnti: null, pendingBet: null };
+      return { ...state, autoFourmi: action.cfg, autoStrat: null, autoTendance: null, autoAnti: null, autoThreeStep: null, pendingBet: null };
+
+    case 'SET_AUTO_THREESTEP':
+      return { ...state, autoThreeStep: action.cfg, autoStrat: null, autoTendance: null, autoAnti: null, autoFourmi: null, pendingBet: null };
 
     case 'SET_CONFIG': {
       const config = { ...state.config, ...action.patch };

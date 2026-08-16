@@ -22,10 +22,17 @@ import {
   type FourmiEntry,
   type FourmiSimOpts,
 } from '../engine/laFourmi';
+import {
+  defaultThreeStepCfg,
+  simulateThreeStep,
+  simulateThreeStepMany,
+  type ThreeStepCfg,
+  type ThreeStepSimOpts,
+} from '../engine/threeStep';
 import { useMoney } from '../state/currency';
 import type { CoachConfig } from '../engine/types';
 
-type StratType = 'banker' | 'tendance' | 'anti' | 'fourmi';
+type StratType = 'banker' | 'tendance' | 'anti' | 'fourmi' | 'threestep';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
@@ -44,6 +51,8 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   const [antiCfg, setAntiCfg] = useState<AntiCfg>(defaultAntiCfg(b));
   // La Fourmi
   const [fourmiCfg, setFourmiCfg] = useState<FourmiCfg>(defaultFourmiCfg(b));
+  // 3 Steps
+  const [threeCfg, setThreeCfg] = useState<ThreeStepCfg>(defaultThreeStepCfg(b));
   const [hands, setHands] = useState(1000);
   const [bankroll, setBankroll] = useState(config.stack);
   const [shoeLimited, setShoeLimited] = useState(true);
@@ -92,6 +101,7 @@ export function SimulationView({ config }: { config: CoachConfig }) {
   };
   const antiOpts: AntiSimOpts = { ...common, ...antiCfg };
   const fourmiOpts: FourmiSimOpts = { ...common, ...fourmiCfg };
+  const threeOpts: ThreeStepSimOpts = { ...common, ...threeCfg };
 
   const runOne = () =>
     stratType === 'banker'
@@ -100,7 +110,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         ? simulateStratTendance(tendanceOpts)
         : stratType === 'anti'
           ? simulateAntiStrat(antiOpts)
-          : simulateFourmi(fourmiOpts);
+          : stratType === 'fourmi'
+            ? simulateFourmi(fourmiOpts)
+            : simulateThreeStep(threeOpts);
   const runMany = (n: number) =>
     stratType === 'banker'
       ? simulateHichamMany(opts, n)
@@ -108,7 +120,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         ? simulateTendanceMany(tendanceOpts, n)
         : stratType === 'anti'
           ? simulateAntiMany(antiOpts, n)
-          : simulateFourmiMany(fourmiOpts, n);
+          : stratType === 'fourmi'
+            ? simulateFourmiMany(fourmiOpts, n)
+            : simulateThreeStepMany(threeOpts, n);
 
   const run = () => {
     if (runs <= 1) {
@@ -128,7 +142,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         ? zigBet || dragBet || 1
         : stratType === 'anti'
           ? antiUnit || 1
-          : fourmiCfg.unit || 1;
+          : stratType === 'fourmi'
+            ? fourmiCfg.unit || 1
+            : threeCfg.base[0] || 1;
 
   return (
     <div className="col">
@@ -150,6 +166,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
           <button className={stratType === 'fourmi' ? 'active' : ''} onClick={() => { setStratType('fourmi'); setSingle(null); setMulti(null); }}>
             🐜 La Fourmi
           </button>
+          <button className={stratType === 'threestep' ? 'active' : ''} onClick={() => { setStratType('threestep'); setSingle(null); setMulti(null); }}>
+            🎯 3 Steps
+          </button>
         </div>
 
         <p className="coach-text" style={{ marginTop: 0 }}>
@@ -159,7 +178,9 @@ export function SimulationView({ config }: { config: CoachConfig }) {
               ? 'Suit la tendance en MISE À PLAT (aucune progression) : Zigzag (dès un changement -> on parie l’alternance) et/ou Dragon (dès un doublement -> on parie la série). Une seule mise par tendance ; on suit tant que ça tient, on s’arrête dès que ça casse.'
               : stratType === 'anti'
                 ? 'On parie CONTRE la tendance : anti-zigzag (le zigzag va s’arrêter -> même couleur) et/ou anti-dragon (la série casse -> couleur opposée), en paliers. Niveau 2 (doux) et/ou niveau 1 (agressif) ; les 2 = vengeance. Tous paliers perdus -> on suit la tendance à plat.'
-                : 'La Fourmi : perdre le minimum, gagner le plus souvent. MISE À PLAT sur le côté à plus faible avantage maison (Joueur ~1,27 % sous la règle 6-moitié), volume réduit par un filtre d’entrée. À combiner avec un Stop-loss / Take-profit serré.'}
+                : stratType === 'fourmi'
+                  ? 'La Fourmi : perdre le minimum, gagner le plus souvent. MISE À PLAT sur le côté à plus faible avantage maison (Joueur ~1,27 % sous la règle 6-moitié), volume réduit par un filtre d’entrée. À combiner avec un Stop-loss / Take-profit serré.'
+                  : '3 Steps : martingale sur 3 paliers (1-2-4), à chaque coup, côté Joueur par défaut. Victoire -> reset ; les 3 perdus -> vengeance niveau 1 (optionnelle) ; vengeance 1 perdue 2 fois -> vengeance niveau 2 (optionnelle).'}
         </p>
 
         {stratType === 'banker' && (
@@ -239,6 +260,57 @@ export function SimulationView({ config }: { config: CoachConfig }) {
         )}
 
         {stratType === 'anti' && <AntiConfigEditor value={antiCfg} onChange={setAntiCfg} />}
+
+        {stratType === 'threestep' && (
+          <>
+            <div className="coach-label" style={{ marginBottom: 8 }}>CÔTÉ</div>
+            <div className="seg-toggle" style={{ marginBottom: 12 }}>
+              <button className={threeCfg.side === 'P' ? 'active' : ''} onClick={() => setThreeCfg((c) => ({ ...c, side: 'P' }))}>
+                🔵 Joueur
+              </button>
+              <button className={threeCfg.side === 'B' ? 'active' : ''} onClick={() => setThreeCfg((c) => ({ ...c, side: 'B' }))}>
+                🔴 Banquier
+              </button>
+            </div>
+            <div className="coach-label" style={{ marginBottom: 8 }}>MISE DE BASE (3 paliers)</div>
+            <div className="stakes-row">
+              {threeCfg.base.map((s, i) => (
+                <div key={i} className="stake-field">
+                  <span className={`stake-idx st${i + 1}`}>Palier {i + 1}</span>
+                  <input type="number" min={0} step={10} value={s} onChange={(e) => setThreeCfg((c) => ({ ...c, base: c.base.map((x, j) => (j === i ? Math.max(0, Number(e.target.value)) : x)) }))} />
+                </div>
+              ))}
+            </div>
+            <div className={`venge-box ${threeCfg.v1On ? 'on' : ''}`} style={{ marginTop: 12 }}>
+              <label className="toggle" style={{ color: 'var(--text)' }}>
+                <input type="checkbox" checked={threeCfg.v1On} onChange={() => setThreeCfg((c) => ({ ...c, v1On: !c.v1On }))} />
+                🔥 <strong>Vengeance niveau 1</strong>
+              </label>
+              <div className="stakes-row" style={{ opacity: threeCfg.v1On ? 1 : 0.45, marginTop: 8 }}>
+                {threeCfg.v1.map((s, i) => (
+                  <div key={i} className="stake-field">
+                    <span className={`stake-idx venge st${i + 1}`}>Palier {i + 1}</span>
+                    <input type="number" min={0} step={10} value={s} disabled={!threeCfg.v1On} onChange={(e) => setThreeCfg((c) => ({ ...c, v1: c.v1.map((x, j) => (j === i ? Math.max(0, Number(e.target.value)) : x)) }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`venge-box ${threeCfg.v2On ? 'on' : ''}`} style={{ marginTop: 10 }}>
+              <label className="toggle" style={{ color: 'var(--text)' }}>
+                <input type="checkbox" checked={threeCfg.v2On} onChange={() => setThreeCfg((c) => ({ ...c, v2On: !c.v2On }))} />
+                🔥🔥 <strong>Vengeance niveau 2</strong> (si veng.1 perd 2 fois)
+              </label>
+              <div className="stakes-row" style={{ opacity: threeCfg.v2On ? 1 : 0.45, marginTop: 8 }}>
+                {threeCfg.v2.map((s, i) => (
+                  <div key={i} className="stake-field">
+                    <span className={`stake-idx venge st${i + 1}`}>Palier {i + 1}</span>
+                    <input type="number" min={0} step={10} value={s} disabled={!threeCfg.v2On} onChange={(e) => setThreeCfg((c) => ({ ...c, v2: c.v2.map((x, j) => (j === i ? Math.max(0, Number(e.target.value)) : x)) }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {stratType === 'fourmi' && (
           <>
