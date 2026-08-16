@@ -151,24 +151,44 @@ export function CasinoBet({
   );
 }
 
+/** Table Joueur/Banquier en lecture seule, jetons posés sur le côté auto-misé. */
+export function AutoBetZones({ bet, baseUnit }: { bet: { side: Side; amount: number } | null; baseUnit: number }) {
+  const money = useMoney();
+  const denoms = [baseUnit, baseUnit * 2, baseUnit * 4, baseUnit * 10];
+  return (
+    <div className="bet-felt auto-felt">
+      <BetZone side="P" amount={bet?.side === 'P' ? bet.amount : 0} denoms={denoms} onClick={() => {}} money={money} readonly active={bet?.side === 'P'} />
+      <BetZone side="B" amount={bet?.side === 'B' ? bet.amount : 0} denoms={denoms} onClick={() => {}} money={money} readonly active={bet?.side === 'B'} />
+    </div>
+  );
+}
+
 function BetZone({
   side,
   amount,
   denoms,
   onClick,
   money,
+  readonly,
+  active,
 }: {
   side: Side;
   amount: number;
   denoms: number[];
   onClick: () => void;
   money: (n: number) => string;
+  readonly?: boolean;
+  active?: boolean;
 }) {
   const stack = chipStack(amount, denoms);
   const label = side === 'P' ? 'JOUEUR' : 'BANQUIER';
   const pay = side === 'P' ? 'paie 1:1' : 'paie 1:1 · 6 = ½';
   return (
-    <button className={`bet-zone ${side === 'P' ? 'player' : 'banker'}`} onClick={onClick}>
+    <button
+      className={`bet-zone ${side === 'P' ? 'player' : 'banker'} ${readonly ? 'readonly' : ''} ${active ? 'active' : ''}`}
+      onClick={readonly ? undefined : onClick}
+      tabIndex={readonly ? -1 : 0}
+    >
       <span className="bz-label">{label}</span>
       <span className="bz-pay">{pay}</span>
       <span className="bz-chips">

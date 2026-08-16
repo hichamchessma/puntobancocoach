@@ -10,6 +10,7 @@ import { ThreeStepModal } from './components/ThreeStepModal';
 import { nextThreeStepBet } from './engine/threeStep';
 import { BacktestView } from './components/BacktestView';
 import { CasinoBet } from './components/CasinoBet';
+import { AutoStratPanel } from './components/AutoStratPanel';
 import { CoachOverlay } from './components/CoachOverlay';
 import { DealSpeedControl, msPerCard, type SpeedMode } from './components/DealSpeedControl';
 import { HandArea, type Reveal } from './components/HandArea';
@@ -404,178 +405,78 @@ export default function App() {
                 </div>
 
                 {autoStrat ? (
-                  <div className="auto-strat-panel">
-                    <div className="asp-head">
-                      <span className="asp-title">🤖 AUTO-STRATÉGIE ACTIVE</span>
-                      <div className="btn-row">
-                        <button className="btn" onClick={() => setShowStratSetup(true)}>⚙ Régler</button>
-                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_STRAT', cfg: null })}>
-                          ⏹ Désactiver
-                        </button>
-                      </div>
-                    </div>
-                    <div className="asp-bet">
-                      {stratBet ? (
-                        <>
-                          <span className={`asp-chip ${autoStrat.side === 'P' ? 'p' : 'b'}`}>
-                            {autoStrat.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
-                          </span>
-                          <span className="asp-amount">{formatMoney(stratBet.amount, config.currency)}</span>
-                          <span className="asp-stage">étape {stratBet.stage}</span>
-                        </>
-                      ) : (
-                        <span className="asp-wait">⏳ Pas de signal — aucune mise ce coup</span>
-                      )}
-                    </div>
-                    {mode === 'sim' ? (
-                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
-                        🂠 DISTRIBUER <span className="kbd">Espace</span>
-                      </button>
-                    ) : (
-                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
-                    )}
-                  </div>
+                  <AutoStratPanel
+                    title="🤖 AUTO-STRATÉGIE ACTIVE"
+                    baseUnit={config.baseUnit}
+                    bet={stratBet ? { side: autoStrat.side, amount: stratBet.amount } : null}
+                    subLabel={stratBet ? `étape ${stratBet.stage}` : null}
+                    canDeal={mode === 'sim'}
+                    onRegler={() => setShowStratSetup(true)}
+                    onDesactiver={() => dispatch({ type: 'SET_AUTO_STRAT', cfg: null })}
+                    onDeal={() => (animating ? finishReveal() : deal())}
+                  />
                 ) : autoTendance ? (
-                  <div className="auto-strat-panel">
-                    <div className="asp-head">
-                      <span className="asp-title">🐉 STRAT TENDANCE ACTIVE</span>
-                      <div className="btn-row">
-                        <button className="btn" onClick={() => setShowTendSetup(true)}>⚙ Régler</button>
-                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_TENDANCE', cfg: null })}>
-                          ⏹ Désactiver
-                        </button>
-                      </div>
-                    </div>
-                    <div className="asp-bet">
-                      {tendBet ? (
-                        <>
-                          <span className={`asp-chip ${tendBet.side === 'P' ? 'p' : 'b'}`}>
-                            {tendBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
-                          </span>
-                          <span className="asp-amount">{formatMoney(tendBet.amount, config.currency)}</span>
-                          <span className="asp-stage">
-                            {tendBet.tendance === 'collage'
-                              ? '🧲 collage'
-                              : tendBet.tendance === 'decollage'
-                                ? '✂️ décollage'
-                                : tendBet.tendance === 'zig'
-                                  ? '🏓 zigzag'
-                                  : '🐉 dragon'}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="asp-wait">⏳ Pas de tendance active — aucune mise ce coup</span>
-                      )}
-                    </div>
-                    {mode === 'sim' ? (
-                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
-                        🂠 DISTRIBUER <span className="kbd">Espace</span>
-                      </button>
-                    ) : (
-                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
-                    )}
-                  </div>
+                  <AutoStratPanel
+                    title="🐉 STRAT TENDANCE ACTIVE"
+                    baseUnit={config.baseUnit}
+                    bet={tendBet ? { side: tendBet.side, amount: tendBet.amount } : null}
+                    subLabel={
+                      tendBet
+                        ? tendBet.tendance === 'collage'
+                          ? '🧲 collage'
+                          : tendBet.tendance === 'decollage'
+                            ? '✂️ décollage'
+                            : tendBet.tendance === 'zig'
+                              ? '🏓 zigzag'
+                              : '🐉 dragon'
+                        : null
+                    }
+                    canDeal={mode === 'sim'}
+                    onRegler={() => setShowTendSetup(true)}
+                    onDesactiver={() => dispatch({ type: 'SET_AUTO_TENDANCE', cfg: null })}
+                    onDeal={() => (animating ? finishReveal() : deal())}
+                  />
                 ) : autoAnti ? (
-                  <div className="auto-strat-panel">
-                    <div className="asp-head">
-                      <span className="asp-title">⚔️ STRAT ANTI ACTIVE</span>
-                      <div className="btn-row">
-                        <button className="btn" onClick={() => setShowAntiSetup(true)}>⚙ Régler</button>
-                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_ANTI', cfg: null })}>
-                          ⏹ Désactiver
-                        </button>
-                      </div>
-                    </div>
-                    <div className="asp-bet">
-                      {antiBet ? (
-                        <>
-                          <span className={`asp-chip ${antiBet.side === 'P' ? 'p' : 'b'}`}>
-                            {antiBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
-                          </span>
-                          <span className="asp-amount">{formatMoney(antiBet.amount, config.currency)}</span>
-                          <span className="asp-stage">
-                            {antiBet.kind === 'antizig' ? '🏓 anti-zig' : '🐉 anti-drag'} · niv{antiBet.niveau}
-                            {antiBet.follow ? ' · suivi' : ` · P${antiBet.level + 1}`}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="asp-wait">⏳ Pas de signal anti — aucune mise ce coup</span>
-                      )}
-                    </div>
-                    {mode === 'sim' ? (
-                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
-                        🂠 DISTRIBUER <span className="kbd">Espace</span>
-                      </button>
-                    ) : (
-                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
-                    )}
-                  </div>
+                  <AutoStratPanel
+                    title="⚔️ STRAT ANTI ACTIVE"
+                    baseUnit={config.baseUnit}
+                    bet={antiBet ? { side: antiBet.side, amount: antiBet.amount } : null}
+                    subLabel={
+                      antiBet
+                        ? `${antiBet.kind === 'antizig' ? '🏓 anti-zig' : '🐉 anti-drag'} · niv${antiBet.niveau}${antiBet.follow ? ' · suivi' : ` · P${antiBet.level + 1}`}`
+                        : null
+                    }
+                    canDeal={mode === 'sim'}
+                    onRegler={() => setShowAntiSetup(true)}
+                    onDesactiver={() => dispatch({ type: 'SET_AUTO_ANTI', cfg: null })}
+                    onDeal={() => (animating ? finishReveal() : deal())}
+                  />
                 ) : autoFourmi ? (
-                  <div className="auto-strat-panel">
-                    <div className="asp-head">
-                      <span className="asp-title">🐜 LA FOURMI ACTIVE</span>
-                      <div className="btn-row">
-                        <button className="btn" onClick={() => setShowFourmiSetup(true)}>⚙ Régler</button>
-                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_FOURMI', cfg: null })}>
-                          ⏹ Désactiver
-                        </button>
-                      </div>
-                    </div>
-                    <div className="asp-bet">
-                      {fourmiBet ? (
-                        <>
-                          <span className={`asp-chip ${fourmiBet.side === 'P' ? 'p' : 'b'}`}>
-                            {fourmiBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
-                          </span>
-                          <span className="asp-amount">{formatMoney(fourmiBet.amount, config.currency)}</span>
-                          <span className="asp-stage">🐜 à plat</span>
-                        </>
-                      ) : (
-                        <span className="asp-wait">⏳ On attend le terrain haché — aucune mise ce coup</span>
-                      )}
-                    </div>
-                    {mode === 'sim' ? (
-                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
-                        🂠 DISTRIBUER <span className="kbd">Espace</span>
-                      </button>
-                    ) : (
-                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
-                    )}
-                  </div>
+                  <AutoStratPanel
+                    title="🐜 LA FOURMI ACTIVE"
+                    baseUnit={config.baseUnit}
+                    bet={fourmiBet ? { side: fourmiBet.side, amount: fourmiBet.amount } : null}
+                    subLabel={fourmiBet ? '🐜 à plat' : null}
+                    canDeal={mode === 'sim'}
+                    onRegler={() => setShowFourmiSetup(true)}
+                    onDesactiver={() => dispatch({ type: 'SET_AUTO_FOURMI', cfg: null })}
+                    onDeal={() => (animating ? finishReveal() : deal())}
+                  />
                 ) : autoThreeStep ? (
-                  <div className="auto-strat-panel">
-                    <div className="asp-head">
-                      <span className="asp-title">🎯 3 STEPS ACTIVE</span>
-                      <div className="btn-row">
-                        <button className="btn" onClick={() => setShowThreeStepSetup(true)}>⚙ Régler</button>
-                        <button className="btn" onClick={() => dispatch({ type: 'SET_AUTO_THREESTEP', cfg: null })}>
-                          ⏹ Désactiver
-                        </button>
-                      </div>
-                    </div>
-                    <div className="asp-bet">
-                      {threeBet ? (
-                        <>
-                          <span className={`asp-chip ${threeBet.side === 'P' ? 'p' : 'b'}`}>
-                            {threeBet.side === 'P' ? '🔵 JOUEUR' : '🔴 BANQUIER'}
-                          </span>
-                          <span className="asp-amount">{formatMoney(threeBet.amount, config.currency)}</span>
-                          <span className="asp-stage">
-                            {threeBet.mode === 'V2' ? '🔥🔥 veng.2' : threeBet.mode === 'V1' ? '🔥 veng.1' : '🎯 base'} · palier {threeBet.step + 1}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="asp-wait">⏳ Aucune mise ce coup</span>
-                      )}
-                    </div>
-                    {mode === 'sim' ? (
-                      <button className="btn gold big deal-btn" onClick={() => (animating ? finishReveal() : deal())}>
-                        🂠 DISTRIBUER <span className="kbd">Espace</span>
-                      </button>
-                    ) : (
-                      <div className="bet-tip">Enregistre le résultat réel ci-dessous.</div>
-                    )}
-                  </div>
+                  <AutoStratPanel
+                    title="🎯 3 STEPS ACTIVE"
+                    baseUnit={config.baseUnit}
+                    bet={threeBet ? { side: threeBet.side, amount: threeBet.amount } : null}
+                    subLabel={
+                      threeBet
+                        ? `${threeBet.mode === 'V2' ? '🔥🔥 veng.2' : threeBet.mode === 'V1' ? '🔥 veng.1' : '🎯 base'} · palier ${threeBet.step + 1}`
+                        : null
+                    }
+                    canDeal={mode === 'sim'}
+                    onRegler={() => setShowThreeStepSetup(true)}
+                    onDesactiver={() => dispatch({ type: 'SET_AUTO_THREESTEP', cfg: null })}
+                    onDeal={() => (animating ? finishReveal() : deal())}
+                  />
                 ) : (
                   <CasinoBet
                     betMode={betMode}
@@ -674,6 +575,13 @@ export default function App() {
                       title="3 Steps : martingale 3 paliers + 2 niveaux de vengeance optionnels"
                     >
                       🎯 {autoThreeStep ? '3Steps ON' : '3 Steps'}
+                    </button>
+                    <button
+                      className={`btn ${!autoStrat && !autoTendance && !autoAnti && !autoFourmi && !autoThreeStep ? 'strat-on' : ''}`}
+                      onClick={() => dispatch({ type: 'CLEAR_AUTO' })}
+                      title="Aucune stratégie : je mise moi-même, comme au début"
+                    >
+                      ✋ Manuel
                     </button>
                     <button className="btn gold" onClick={playNow}>
                       ▶ Jouer / Help

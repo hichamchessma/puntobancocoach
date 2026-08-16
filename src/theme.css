@@ -1028,3 +1028,6 @@ body {
 .sl-banner { background: rgba(209,0,24,0.14); border: 1px solid rgba(209,0,24,0.5); color: #ff8a9a; }
 .entry-opt { background: linear-gradient(180deg, #0f1830, #0b1120); border: 1px solid var(--panel-line); color: var(--text); }
 .entry-opt:hover { border-color: rgba(255,255,255,0.25); }
+.auto-felt { margin: 10px 0; }
+.bet-zone.readonly { cursor: default; opacity: 0.55; filter: saturate(0.7); }
+.bet-zone.readonly.active { opacity: 1; filter: none; box-shadow: 0 0 0 2px var(--gold), 0 10px 30px rgba(0,0,0,0.45); transform: translateY(-1px); }

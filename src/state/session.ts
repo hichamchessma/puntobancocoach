@@ -86,6 +86,7 @@ export type Action =
   | { type: 'SET_AUTO_ANTI'; cfg: AntiCfg | null }
   | { type: 'SET_AUTO_FOURMI'; cfg: FourmiCfg | null }
   | { type: 'SET_AUTO_THREESTEP'; cfg: ThreeStepCfg | null }
+  | { type: 'CLEAR_AUTO' } // désactive toutes les auto-stratégies (retour au jeu manuel)
   | { type: 'SET_CONFIG'; patch: Partial<CoachConfig> }
   | { type: 'NEW_SHOE' } // nouveau sabot : remet la road à zéro (garde stack)
   | { type: 'RESET_SESSION' } // tout remettre à zéro
@@ -240,6 +241,9 @@ export function reducer(state: SessionState, action: Action): SessionState {
 
     case 'SET_AUTO_THREESTEP':
       return { ...state, autoThreeStep: action.cfg, autoStrat: null, autoTendance: null, autoAnti: null, autoFourmi: null, pendingBet: null };
+
+    case 'CLEAR_AUTO':
+      return { ...state, autoStrat: null, autoTendance: null, autoAnti: null, autoFourmi: null, autoThreeStep: null };
 
     case 'SET_CONFIG': {
       const config = { ...state.config, ...action.patch };
